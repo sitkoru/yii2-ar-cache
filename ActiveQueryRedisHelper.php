@@ -9,7 +9,7 @@ use yii\db\Query;
 /**
  * Class ActiveQueryRedisHelper
  *
- * @package common\components
+ * @package sitkoru\cache\ar
  */
 class ActiveQueryRedisHelper extends RedisHelper
 {

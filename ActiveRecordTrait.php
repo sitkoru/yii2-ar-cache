@@ -9,9 +9,7 @@ use yii\db\ActiveRecord;
 /**
  * Class ActiveRecordTrait
  *
- * @package common\components
- *
- * @property ActiveRecord self
+ * @package sitkoru\cache\ar
  */
 trait ActiveRecordTrait
 {

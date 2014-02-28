@@ -2,12 +2,12 @@
 
 namespace common\components\cache;
 
-use common\helpers\ArrayHelper;
+use sitkoru\cache\ar\ArrayHelper;
 
 /**
  * Class RedisHelper
  *
- * @package common\helpers
+ * @package common\components\cache
  */
 class RedisHelper
 {
