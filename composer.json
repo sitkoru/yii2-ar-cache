@@ -1,0 +1,26 @@
+{
+    "name": "sitkoru/yii2-ar-cache",
+    "description": "Extended ActiveRecord to cache everything in Redis",
+    "keywords": ["sitkoru", "cg2", "yii2"],
+    "type": "yii2-extension",
+    "license": "MIT",
+    "support": {
+
+    },
+    "authors": [
+        {
+            "name": "George Drak",
+            "email": "sonicgd@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.4.0",
+        "yiisoft/yii2": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "sitkoru\\cache\\ar\\": ""
+        }
+    }
+}
