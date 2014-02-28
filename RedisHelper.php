@@ -1,8 +1,6 @@
 <?php
 
-namespace common\components\cache;
-
-use sitkoru\cache\ar\ArrayHelper;
+namespace sitkoru\cache\ar;
 
 /**
  * Class RedisHelper

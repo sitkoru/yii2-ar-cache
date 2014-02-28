@@ -2,7 +2,6 @@
 
 namespace sitkoru\cache\ar;
 
-use common\components\cache\RedisHelper;
 use yii\db\ActiveRecord;
 use yii\db\Query;
 
