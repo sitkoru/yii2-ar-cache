@@ -2,7 +2,7 @@
 
 namespace sitkoru\cache\ar;
 
-use sitkoru\cache\ar\ActiveQueryRedisHelper;
+use sitkoru\cache\ar\ActiveQueryCacheHelper;
 use sitkoru\cache\ar\CacheActiveQuery;
 use yii\db\ActiveRecord;
 
@@ -25,7 +25,7 @@ trait ActiveRecordTrait
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            ActiveQueryRedisHelper::dropCaches($this);
+            ActiveQueryCacheHelper::dropCaches($this);
 
             return true;
         } else {
@@ -36,7 +36,7 @@ trait ActiveRecordTrait
     public function beforeDelete()
     {
         if (parent::beforeDelete()) {
-            ActiveQueryRedisHelper::dropCaches($this);
+            ActiveQueryCacheHelper::dropCaches($this);
 
             return true;
         } else {
@@ -46,7 +46,7 @@ trait ActiveRecordTrait
 
     public function refresh()
     {
-        ActiveQueryRedisHelper::dropCaches($this);
+        ActiveQueryCacheHelper::dropCaches($this);
 
         return parent::refresh();
     }
@@ -78,7 +78,7 @@ trait ActiveRecordTrait
      */
     public static function deleteAll($condition = '', $params = [])
     {
-        ActiveQueryRedisHelper::dropCachesForCondition(static::className(), $condition, $params);
+        ActiveQueryCacheHelper::dropCachesForCondition(static::className(), $condition, $params);
 
         return parent::deleteAll($condition, $params);
     }

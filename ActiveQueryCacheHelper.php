@@ -6,11 +6,11 @@ use yii\db\ActiveRecord;
 use yii\db\Query;
 
 /**
- * Class ActiveQueryRedisHelper
+ * Class ActiveQueryCacheHelper
  *
  * @package sitkoru\cache\ar
  */
-class ActiveQueryRedisHelper extends RedisHelper
+class ActiveQueryCacheHelper extends CacheHelper
 {
     /**
      * @param ActiveRecord $model

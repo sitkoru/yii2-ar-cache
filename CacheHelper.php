@@ -3,11 +3,11 @@
 namespace sitkoru\cache\ar;
 
 /**
- * Class RedisHelper
+ * Class CacheHelper
  *
  * @package common\components\cache
  */
-class RedisHelper
+class CacheHelper
 {
     /**
      * @var array

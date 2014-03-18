@@ -81,7 +81,7 @@ class CacheActiveQuery extends ActiveQuery
     /**
      * @param Command $command
      *
-     * @param   $mode
+     * @param         $mode
      *
      * @return string
      */
@@ -121,7 +121,7 @@ class CacheActiveQuery extends ActiveQuery
         ];
         $toCache = clone $model;
         $toCache->fromCache = true;
-        ActiveQueryRedisHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
+        ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
 
         return true;
     }
@@ -148,7 +148,7 @@ class CacheActiveQuery extends ActiveQuery
             $indexes[$class::tableName()][] = $mToCache->primaryKey;
         }
 
-        ActiveQueryRedisHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
+        ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
 
         return true;
     }
@@ -173,6 +173,9 @@ class CacheActiveQuery extends ActiveQuery
         return $this;
     }
 
+    /**
+     * @return static
+     */
     public function noCache()
     {
         $this->noCache = true;
