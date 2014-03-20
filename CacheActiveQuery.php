@@ -40,7 +40,9 @@ class CacheActiveQuery extends ActiveQuery
         } else {
             $models = parent::all($db);
             if ($models) {
-                $this->insertInCacheAll($key, $models);
+                if (!$this->noCache) {
+                    $this->insertInCacheAll($key, $models);
+                }
 
                 return $models;
             } else {
@@ -69,7 +71,9 @@ class CacheActiveQuery extends ActiveQuery
         } else {
             $model = parent::one();
             if ($model && $model instanceof ActiveRecord) {
-                $this->insertInCacheOne($key, $model);
+                if (!$this->noCache) {
+                    $this->insertInCacheOne($key, $model);
+                }
 
                 return $model;
             } else {
