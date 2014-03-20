@@ -186,4 +186,10 @@ class CacheActiveQuery extends ActiveQuery
 
         return $this;
     }
+
+    public function asArray($value = true)
+    {
+        $this->noCache = true;
+        return parent::asArray($value);
+    }
 }
