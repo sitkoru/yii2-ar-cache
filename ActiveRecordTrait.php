@@ -67,7 +67,6 @@ trait ActiveRecordTrait
      */
     public static function deleteAll($condition = '', $params = [])
     {
-        echo "delete all";
         ActiveQueryCacheHelper::dropCachesForCondition(static::className(), $condition, $params);
 
         return parent::deleteAll($condition, $params);
