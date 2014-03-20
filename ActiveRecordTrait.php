@@ -29,7 +29,6 @@ trait ActiveRecordTrait
     public function afterDelete()
     {
         parent::afterDelete();
-        echo "After delete!";
         ActiveQueryCacheHelper::dropCaches($this);
     }
 
