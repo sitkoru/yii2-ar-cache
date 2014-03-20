@@ -102,7 +102,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getKeysForCreateEvent($singleModel, $event, $values, $keys)
     {
-        if ($singleModel->isNewRecord) {
+        if ($singleModel->insert) {
             if (isset($event[2]) && isset($event[3])) {
                 $param = $event[2];
                 $value = $event[3];

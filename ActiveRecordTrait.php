@@ -10,6 +10,7 @@ namespace sitkoru\cache\ar;
 trait ActiveRecordTrait
 {
     public $fromCache = false;
+    public $insert = false;
 
     public static function createQuery($config = [])
     {
@@ -21,6 +22,7 @@ trait ActiveRecordTrait
     public function afterSave($insert)
     {
         parent::afterSave($insert);
+        $this->insert = $insert;
         ActiveQueryCacheHelper::dropCaches($this);
     }
 
@@ -65,6 +67,7 @@ trait ActiveRecordTrait
      */
     public static function deleteAll($condition = '', $params = [])
     {
+        echo "delete all";
         ActiveQueryCacheHelper::dropCachesForCondition(static::className(), $condition, $params);
 
         return parent::deleteAll($condition, $params);
