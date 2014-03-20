@@ -2,10 +2,6 @@
 
 namespace sitkoru\cache\ar;
 
-use sitkoru\cache\ar\ActiveQueryCacheHelper;
-use sitkoru\cache\ar\CacheActiveQuery;
-use yii\db\ActiveRecord;
-
 /**
  * Class ActiveRecordTrait
  *
@@ -22,26 +18,17 @@ trait ActiveRecordTrait
         return new CacheActiveQuery($config);
     }
 
-    public function beforeSave($insert)
+    public function afterSave($insert)
     {
-        if (parent::beforeSave($insert)) {
-            ActiveQueryCacheHelper::dropCaches($this);
-
-            return true;
-        } else {
-            return false;
-        }
+        parent::afterSave($insert);
+        ActiveQueryCacheHelper::dropCaches($this);
     }
 
-    public function beforeDelete()
+    public function afterDelete()
     {
-        if (parent::beforeDelete()) {
-            ActiveQueryCacheHelper::dropCaches($this);
-
-            return true;
-        } else {
-            return false;
-        }
+        parent::afterDelete();
+        echo "After delete!";
+        ActiveQueryCacheHelper::dropCaches($this);
     }
 
     public function refresh()
