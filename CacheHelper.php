@@ -54,11 +54,13 @@ class CacheHelper
     public static function setCachesTable($caches)
     {
         $oldCaches = self::extractCachesData();
-        $diff = ArrayHelper::arrayRecursiveDiff($caches, $oldCaches);
-        self::refreshCaches();
-        $newCaches = self::extractCachesData();
-        $result = array_merge_recursive($newCaches, $diff);
-        self::updateCachesTable($result);
+        if ($caches != $oldCaches) {
+            $diff = ArrayHelper::arrayRecursiveDiff($caches, $oldCaches);
+            self::refreshCaches();
+            $newCaches = self::extractCachesData();
+            $result = array_merge_recursive($newCaches, $diff);
+            self::updateCachesTable($result);
+        }
     }
 
     /**
