@@ -66,7 +66,7 @@ class CacheHelper
     /**
      *
      */
-    private static function refreshCaches()
+    public static function refreshCaches()
     {
         self::getCachesTable(true);
     }
