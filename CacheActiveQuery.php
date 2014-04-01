@@ -192,4 +192,14 @@ class CacheActiveQuery extends ActiveQuery
         $this->noCache = true;
         return parent::asArray($value);
     }
+
+    public function deleteAll()
+    {
+        /**
+         * @var $class ActiveRecord
+         */
+        $params = [];
+        $class = $this->modelClass;
+        return $class::deleteAll($this->where, $params);
+    }
 }
