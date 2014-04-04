@@ -12,11 +12,9 @@ trait ActiveRecordTrait
     public $fromCache = false;
     public $insert = false;
 
-    public static function createQuery($config = [])
+    public static function createQuery()
     {
-        $config['modelClass'] = get_called_class();
-
-        return new CacheActiveQuery($config);
+        return new CacheActiveQuery(get_called_class());
     }
 
     public function afterSave($insert)
