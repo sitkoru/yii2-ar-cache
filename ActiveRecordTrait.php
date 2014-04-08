@@ -12,7 +12,7 @@ trait ActiveRecordTrait
     public $fromCache = false;
     public $insert = false;
 
-    public static function createQuery()
+    public static function find()
     {
         return new CacheActiveQuery(get_called_class());
     }
