@@ -28,15 +28,18 @@ class CacheActiveQuery extends ActiveQuery
          */
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
+            $resultFromCache = [];
             foreach ($fromCache as $i => $model) {
+                $key = $i;
                 if ($model instanceof ActiveRecord) {
                     $model->afterFind();
-                    $fromCache[$i] = $model;
                 }
-
+                if (is_string($this->indexBy)) {
+                    $key = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
+                }
+                $resultFromCache[$key] = $model;
             }
-
-            return $fromCache;
+            return $resultFromCache;
         } else {
             $models = parent::all($db);
             if ($models) {
