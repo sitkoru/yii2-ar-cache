@@ -122,6 +122,44 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
+     * @param ActiveRecord $singleModel
+     * @param array        $event
+     * @param array        $values
+     * @param array        $keys
+     *
+     * @return array
+     */
+    public static function getKeysForUpdateEvent($singleModel, $event, $values, $keys)
+    {
+        if (!$singleModel->insert && isset($event[2]) && isset($singleModel->dirtyAttributes[$event[2]])) {
+            if (count($event) > 3) {
+                $match = true;
+                for ($i = 3; $i < count($event); $i += 2) {
+                    if (!$match) {
+                        break;
+                    }
+                    $param = $event[$i];
+                    $value = $event[$i + 1];
+                    if (!isset($singleModel->$param) || $singleModel->$param != $value) {
+                        $match = false;
+                    }
+                }
+                if ($match) {
+                    foreach ($values as $value) {
+                        $keys[] = $value;
+                    }
+                }
+            } else {
+                foreach ($values as $value) {
+                    $keys[] = $value;
+                }
+            }
+        }
+
+        return $keys;
+    }
+
+    /**
      * @param $caches
      * @param $className
      * @param $singleModel
@@ -137,6 +175,9 @@ class ActiveQueryCacheHelper extends CacheHelper
                 switch ($event[1]) {
                     case "create":
                         $keys = self::getKeysForCreateEvent($singleModel, $event, $values, $keys);
+                        break;
+                    case "update":
+                        $keys = self::getKeysForUpdateEvent($singleModel, $event, $values, $keys);
                         break;
                 }
             }
@@ -155,11 +196,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function insertKeysForConditions($key, $dropConditions, $caches, $modelName)
     {
-        foreach ($dropConditions as $condition) {
-            $entryKey = "event_" . $condition['event'];
-            if ($condition['param']) {
-                $entryKey .= "_" . $condition['param'] . "_" . $condition['value'];
-            }
+        foreach ($dropConditions as $entryKey) {
             if (!isset($caches[$modelName][$entryKey])) {
                 $caches[$modelName][$entryKey] = [];
             }

@@ -98,7 +98,7 @@ class CacheActiveQuery extends ActiveQuery
         $key .= strtolower($this->modelClass);
         $key .= $command->rawSql;
         if (count($this->where) == 0 && count($this->dropConditions) == 0) {
-            $this->dropCacheOn('create');
+            $this->dropCacheOnCreate();
         }
         //pagination
         if ($this->limit > 0) {
@@ -161,21 +161,37 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * Sets the [[_dropConditions]] property.
+     * @param string|null $param
+     * @param string|null $value
      *
-     * @param         $event
-     * @param bool    $param
-     * @param boolean $value whether to return the query results in terms of arrays instead of Active Records.
-     *
-     * @return CacheActiveQuery the query object itself
+     * @return self
      */
-    public function dropCacheOn($event, $param = false, $value = false)
+    public function dropCacheOnCreate($param = null, $value = null)
     {
-        $this->dropConditions[] = [
-            'event' => $event,
-            'param' => $param,
-            'value' => $value
-        ];
+        $entryKey = "event_create";
+        if ($param) {
+            $entryKey .= "_" . $param . "_" . $value;
+        }
+        $this->dropConditions[] = $entryKey;
+
+        return $this;
+    }
+
+    /**
+     * @param string     $param
+     * @param null|array $condition
+     *
+     * @return self
+     */
+    public function dropCacheOnUpdate($param, $condition = null)
+    {
+        $entryKey = "event_update_" . $param;
+        if ($condition) {
+            foreach ($condition as $param => $value) {
+                $entryKey .= "_" . $param . "_" . $value;
+            }
+        }
+        $this->dropConditions[] = $entryKey;
 
         return $this;
     }
