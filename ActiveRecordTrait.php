@@ -67,7 +67,7 @@ trait ActiveRecordTrait
     private function applyDropConditions(CacheActiveQuery $query)
     {
         foreach ($query->link as $param => $value) {
-            $query->dropCacheOnCreate($param, $value);
+            $query->dropCacheOnCreate($param, $this->$value);
         }
         return $query;
     }
