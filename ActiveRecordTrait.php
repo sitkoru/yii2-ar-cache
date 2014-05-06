@@ -45,7 +45,7 @@ trait ActiveRecordTrait
      */
     public function hasMany($class, $link)
     {
-        return parent::hasMany($class, $link);
+        return $this->applyDropConditions(parent::hasMany($class, $link));
     }
 
     /**
@@ -56,7 +56,20 @@ trait ActiveRecordTrait
      */
     public function hasOne($class, $link)
     {
-        return parent::hasOne($class, $link);
+        return $this->applyDropConditions(parent::hasOne($class, $link));
+    }
+
+    /**
+     * @param CacheActiveQuery $query
+     *
+     * @return CacheActiveQuery
+     */
+    private function applyDropConditions(CacheActiveQuery $query)
+    {
+        foreach ($query->link as $param => $value) {
+            $query->dropCacheOnCreate($param, $value);
+        }
+        return $query;
     }
 
     /**
