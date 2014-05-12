@@ -26,8 +26,16 @@ class CacheActiveQuery extends ActiveQuery
         /**
          * @var ActiveRecord[] $fromCache
          */
+        \Yii::info(
+            "Look in cache for " . $key,
+            'cache'
+        );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
+            \Yii::info(
+                "Success for " . $key,
+                'cache'
+            );
             $resultFromCache = [];
             foreach ($fromCache as $i => $model) {
                 $key = $i;
@@ -41,6 +49,10 @@ class CacheActiveQuery extends ActiveQuery
             }
             return $resultFromCache;
         } else {
+            \Yii::info(
+                "Miss for " . $key,
+                'cache'
+            );
             $models = parent::all($db);
             if ($models) {
                 if (!$this->noCache) {
@@ -64,14 +76,26 @@ class CacheActiveQuery extends ActiveQuery
         /**
          * @var ActiveRecord $fromCache
          */
+        \Yii::info(
+            "Look in cache for " . $key,
+            'cache'
+        );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
+            \Yii::info(
+                "Success for " . $key,
+                'cache'
+            );
             if ($fromCache instanceof ActiveRecord) {
                 $fromCache->afterFind();
             }
 
             return $fromCache;
         } else {
+            \Yii::info(
+                "Miss for " . $key,
+                'cache'
+            );
             $model = parent::one();
             if ($model && $model instanceof ActiveRecord) {
                 if (!$this->noCache) {
@@ -107,7 +131,10 @@ class CacheActiveQuery extends ActiveQuery
         if ($this->offset > 0) {
             $key .= "offset" . $this->offset;
         }
-
+        \Yii::info(
+            "Generate cache key for " . $key . ':  . md5($key)',
+            'cache'
+        );
         return md5($key);
     }
 

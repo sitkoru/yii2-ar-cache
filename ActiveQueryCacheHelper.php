@@ -17,9 +17,17 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function dropCaches($model)
     {
+        \Yii::info(
+            "Drop caches. Look depended caches for " . $model::className() . " " . json_encode($model->attributes),
+            'cache'
+        );
         $depended = self::getDependedCaches($model);
         if (count($depended)) {
             foreach ($depended as $cacheKey) {
+                \Yii::info(
+                    "Drop cache " . $cacheKey,
+                    'cache'
+                );
                 \Yii::$app->cache->delete($cacheKey);
             }
             self::deleteCachesFromTable($depended);
@@ -196,6 +204,10 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function insertKeysForConditions($key, $dropConditions, $caches, $modelName)
     {
+        \Yii::info(
+            "Insert conditions in cache for " . $key,
+            'cache'
+        );
         foreach ($dropConditions as $entryKey) {
             if (!isset($caches[$modelName][$entryKey])) {
                 $caches[$modelName][$entryKey] = [];
@@ -214,6 +226,10 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function insertInCache($key, $data, $indexes, $dropConditions)
     {
+        \Yii::info(
+            "Insert in cache for " . $key,
+            'cache'
+        );
         $result = \Yii::$app->cache->set($key, $data);
         $caches = self::getCachesTable();
         if ($result) {
