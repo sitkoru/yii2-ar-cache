@@ -19,6 +19,10 @@ trait ActiveRecordTrait
 
     public function afterSave($insert)
     {
+        \Yii::info(
+            ($insert ? "Insert" : "Update") . " " . get_called_class() . ": " . json_encode($this->attributes),
+            'cache'
+        );
         parent::afterSave($insert);
         $this->insert = $insert;
         ActiveQueryCacheHelper::dropCaches($this);
