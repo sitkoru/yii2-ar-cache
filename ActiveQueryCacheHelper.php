@@ -129,7 +129,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getKeysForUpdateEvent($singleModel, $keys)
     {
 
-        $setName = $singleModel::tableName() . "_create";
+        $setName = $singleModel::tableName() . "_update";
         $setMembers = CacheHelper::getSetMembers($setName);
         if ($setMembers) {
             foreach ($setMembers as $member) {
