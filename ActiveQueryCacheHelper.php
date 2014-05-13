@@ -29,7 +29,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                     'cache'
                 );
                 \Yii::$app->cache->delete($cacheKey['key']);
-                CacheHelper::getRedis()->executeCommand("SREM", [$cacheKey['setKey'], $cacheKey['member']]);
+                CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['member']);
             }
         }
     }
@@ -65,7 +65,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         $pk = $model->getPrimaryKey(false);
 
         $setKey = $tableName . "_" . $pk;
-        $setKeys = CacheHelper::getRedis()->executeCommand("SMEMBERS", [$setKey]);
+        $setKeys = CacheHelper::getSetMembers($setKey);
         if ($setKeys) {
             foreach ($setKeys as $member) {
                 $keys[] = [
@@ -93,7 +93,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     {
 
         $setName = $singleModel::tableName() . "_create";
-        $setMembers = CacheHelper::getRedis()->executeCommand("SMEMBERS", [$setName]);
+        $setMembers = CacheHelper::getSetMembers($setName);
         if ($setMembers) {
             foreach ($setMembers as $member) {
                 $event = json_decode($member, true);
@@ -132,7 +132,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     {
 
         $setName = $singleModel::tableName() . "_create";
-        $setMembers = CacheHelper::getRedis()->executeCommand("SMEMBERS", [$setName]);
+        $setMembers = CacheHelper::getSetMembers($setName);
         if ($setMembers) {
             foreach ($setMembers as $member) {
                 $event = json_decode($member, true);
@@ -196,7 +196,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         if ($result) {
             foreach ($indexes as $modelName => $keys) {
                 foreach ($keys as $pk) {
-                    CacheHelper::getRedis()->executeCommand("SADD", [$modelName . "_" . $pk, $key]);
+                    CacheHelper::addToSet($modelName . "_" . $pk, $key);
                 }
                 foreach ($dropConditions as $event) {
                     $setKey = "";
@@ -212,7 +212,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                             break;
                     }
                     $event['key'] = $key;
-                    CacheHelper::getRedis()->executeCommand("SADD", [$setKey, json_encode($event)]);
+                    CacheHelper::addToSet($setKey, json_encode($event));
                 }
             }
         }

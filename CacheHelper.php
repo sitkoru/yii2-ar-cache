@@ -18,4 +18,19 @@ class CacheHelper
     {
         return \Yii::$app->cache->redis;
     }
+
+    public static function addToSet($setKey, $member)
+    {
+        return self::getRedis()->executeCommand("SADD", [$setKey, $member]);
+    }
+
+    public static function getSetMembers($setKey)
+    {
+        return self::getRedis()->executeCommand("SMEMBERS", [$setKey]);
+    }
+
+    public static function removeFromSet($setKey, $member)
+    {
+        return self::getRedis()->executeCommand("SREM", [$setKey, $member]);
+    }
 }
