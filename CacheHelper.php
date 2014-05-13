@@ -2,6 +2,8 @@
 
 namespace sitkoru\cache\ar;
 
+use yii\redis\Connection;
+
 /**
  * Class CacheHelper
  *
@@ -10,80 +12,10 @@ namespace sitkoru\cache\ar;
 class CacheHelper
 {
     /**
-     * @var array
+     * @return Connection
      */
-    private static $caches = false;
-
-    /**
-     * @param bool $force
-     *
-     * @return array
-     */
-    public static function getCachesTable($force = false)
+    public static function getRedis()
     {
-        if ($force || self::$caches == false) {
-            $caches = \Yii::$app->cache->get('yii_caches_table');
-            if ($caches) {
-                self::$caches = json_decode($caches, true);
-            } else {
-                self::$caches = [];
-            }
-        }
-
-        return self::extractCachesData();
-    }
-
-    /**
-     * @return array
-     */
-    private static function extractCachesData()
-    {
-        $caches = [];
-        if (self::$caches && count(self::$caches) > 0) {
-            foreach (self::$caches as $field => $value) {
-                $caches[$field] = json_decode($value, true);
-            }
-        }
-
-        return $caches;
-    }
-
-    /**
-     * @param $caches
-     */
-    public static function setCachesTable($caches)
-    {
-        $oldCaches = self::extractCachesData();
-        if ($caches != $oldCaches) {
-            $diff = ArrayHelper::arrayRecursiveDiff($caches, $oldCaches);
-            self::refreshCaches();
-            $newCaches = self::extractCachesData();
-            $result = array_merge_recursive($newCaches, $diff);
-            self::updateCachesTable($result);
-        }
-    }
-
-    /**
-     *
-     */
-    public static function refreshCaches()
-    {
-        self::getCachesTable(true);
-    }
-
-    /**
-     * @param $caches
-     */
-    public static function updateCachesTable($caches)
-    {
-        foreach ($caches as $key => $data) {
-            self::$caches[$key] = json_encode($data);
-        }
-        foreach (self::$caches as $key => $data) {
-            if (!isset($caches[$key])) {
-                unset(self::$caches[$key]);
-            }
-        }
-        \Yii::$app->cache->set('yii_caches_table', json_encode(self::$caches));
+        return \Yii::$app->cache->redis;
     }
 }

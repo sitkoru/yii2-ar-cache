@@ -195,11 +195,12 @@ class CacheActiveQuery extends ActiveQuery
      */
     public function dropCacheOnCreate($param = null, $value = null)
     {
-        $entryKey = "event_create";
-        if ($param) {
-            $entryKey .= "_" . $param . "_" . $value;
-        }
-        $this->dropConditions[] = $entryKey;
+        $event = [
+            'type'  => 'create',
+            'param' => $param,
+            'value' => $value
+        ];
+        $this->dropConditions[] = $event;
 
         return $this;
     }
@@ -212,13 +213,17 @@ class CacheActiveQuery extends ActiveQuery
      */
     public function dropCacheOnUpdate($param, $condition = null)
     {
-        $entryKey = "event_update_" . $param;
+        $event = [
+            'type'       => 'update',
+            'param'      => $param,
+            'conditions' => []
+        ];
         if ($condition) {
             foreach ($condition as $param => $value) {
-                $entryKey .= "_" . $param . "_" . $value;
+                $event['conditions'] = [$param => $value];
             }
         }
-        $this->dropConditions[] = $entryKey;
+        $this->dropConditions[] = $event;
 
         return $this;
     }

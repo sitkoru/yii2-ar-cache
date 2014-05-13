@@ -25,12 +25,12 @@ class ActiveQueryCacheHelper extends CacheHelper
         if (count($depended)) {
             foreach ($depended as $cacheKey) {
                 \Yii::info(
-                    "Drop cache " . $cacheKey,
+                    "Drop cache " . $cacheKey['key'],
                     'cache'
                 );
-                \Yii::$app->cache->delete($cacheKey);
+                \Yii::$app->cache->delete($cacheKey['key']);
+                CacheHelper::getRedis()->executeCommand("SREM", [$cacheKey['setKey'], $cacheKey['member']]);
             }
-            self::deleteCachesFromTable($depended);
         }
     }
 
@@ -59,16 +59,23 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getDependedCaches(ActiveRecord $model)
     {
         $keys = [];
-        $caches = self::getCachesTable();
 
         $tableName = $model->tableName();
 
         $pk = $model->getPrimaryKey(false);
-        if (isset($caches[$tableName]["pk_" . $pk])) {
-            foreach ($caches[$tableName]["pk_" . $pk] as $cacheKey) {
-                $keys[] = $cacheKey;
+
+        $setKey = $tableName . "_" . $pk;
+        $setKeys = CacheHelper::getRedis()->executeCommand("SMEMBERS", [$setKey]);
+        if ($setKeys) {
+            foreach ($setKeys as $member) {
+                $keys[] = [
+                    'setKey' => $setKey,
+                    'key'    => $member,
+                    'member' => $member
+                ];
             }
         }
+
         if (isset($caches[$tableName])) {
             $keys = self::getEventsKeys($caches, $tableName, $model, $keys);
         }
@@ -77,51 +84,37 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
-     * @param $keys
-     */
-    public static function deleteCachesFromTable($keys)
-    {
-        $caches = self::getCachesTable();
-        foreach ($caches as $table => $entries) {
-            foreach ($entries as $i => $entry) {
-                foreach ($entry as $j => $key) {
-                    if (in_array($key, $keys)) {
-                        unset($caches[$table][$i][$j]);
-                    }
-                }
-                if (count($caches[$table][$i]) == 0) {
-                    unset($caches[$table][$i]);
-                }
-            }
-            if (count($caches[$table]) == 0) {
-                unset($caches[$table]);
-            }
-        }
-        self::updateCachesTable($caches);
-    }
-
-    /**
      * @param $singleModel
-     * @param $event
-     * @param $values
      * @param $keys
      *
      * @return array
      */
-    public static function getKeysForCreateEvent($singleModel, $event, $values, $keys)
+    public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
     {
-        if ($singleModel->insert) {
-            if (isset($event[2]) && isset($event[3])) {
-                $param = $event[2];
-                $value = $event[3];
-                if (isset($singleModel->$param) && $singleModel->$param == $value) {
-                    foreach ($values as $value) {
-                        $keys[] = $value;
+
+        $setName = $singleModel::tableName() . "_create";
+        $setMembers = CacheHelper::getRedis()->executeCommand("SMEMBERS", [$setName]);
+        if ($setMembers) {
+            foreach ($setMembers as $member) {
+                $event = json_decode($member, true);
+                if (isset($event['param']) && isset($event['value'])) {
+                    $param = $event['param'];
+                    $value = $event['value'];
+                    if (isset($singleModel->$param) && $singleModel->$param == $value) {
+                        $keys[] = [
+                            'setKey' => $setName,
+                            'key'    => $event['key'],
+                            'member' => $member
+
+                        ];
                     }
-                }
-            } else {
-                foreach ($values as $value) {
-                    $keys[] = $value;
+                } else {
+                    $keys[] = [
+                        'setKey' => $setName,
+                        'key'    => $event['key'],
+                        'member' => $member
+
+                    ];
                 }
             }
         }
@@ -131,35 +124,40 @@ class ActiveQueryCacheHelper extends CacheHelper
 
     /**
      * @param ActiveRecord $singleModel
-     * @param array        $event
-     * @param array        $values
      * @param array        $keys
      *
      * @return array
      */
-    public static function getKeysForUpdateEvent($singleModel, $event, $values, $keys)
+    public static function getKeysForUpdateEvent($singleModel, $keys)
     {
-        if (!$singleModel->insert && isset($event[2]) && isset($singleModel->dirtyAttributes[$event[2]])) {
-            if (count($event) > 3) {
-                $match = true;
-                for ($i = 3; $i < count($event); $i += 2) {
-                    if (!$match) {
-                        break;
+
+        $setName = $singleModel::tableName() . "_create";
+        $setMembers = CacheHelper::getRedis()->executeCommand("SMEMBERS", [$setName]);
+        if ($setMembers) {
+            foreach ($setMembers as $member) {
+                $event = json_decode($member, true);
+                if (count($event['conditions']) > 0) {
+                    $match = true;
+                    foreach ($event['conditions'] as $param => $value) {
+                        if (!isset($singleModel->$param) || $singleModel->$param != $value) {
+                            $match = false;
+                        }
                     }
-                    $param = $event[$i];
-                    $value = $event[$i + 1];
-                    if (!isset($singleModel->$param) || $singleModel->$param != $value) {
-                        $match = false;
+                    if ($match) {
+                        $keys[] = [
+                            'setKey' => $setName,
+                            'key'    => $event['key'],
+                            'member' => $member
+
+                        ];
                     }
-                }
-                if ($match) {
-                    foreach ($values as $value) {
-                        $keys[] = $value;
-                    }
-                }
-            } else {
-                foreach ($values as $value) {
-                    $keys[] = $value;
+                } else {
+                    $keys[] = [
+                        'setKey' => $setName,
+                        'key'    => $event['key'],
+                        'member' => $member
+
+                    ];
                 }
             }
         }
@@ -168,54 +166,17 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
-     * @param $caches
-     * @param $className
      * @param $singleModel
      * @param $keys
      *
      * @return array
      */
-    public static function getEventsKeys($caches, $className, $singleModel, $keys)
+    public static function getEventsKeys($singleModel, $keys)
     {
-        foreach ($caches[$className] as $key => $values) {
-            if (stripos($key, "event_") === 0) {
-                $event = explode("_", $key);
-                switch ($event[1]) {
-                    case "create":
-                        $keys = self::getKeysForCreateEvent($singleModel, $event, $values, $keys);
-                        break;
-                    case "update":
-                        $keys = self::getKeysForUpdateEvent($singleModel, $event, $values, $keys);
-                        break;
-                }
-            }
-        }
+        $keys = self::getKeysForCreateEvent($singleModel, $keys);
+        $keys = self::getKeysForUpdateEvent($singleModel, $keys);
 
         return $keys;
-    }
-
-    /**
-     * @param $key
-     * @param $dropConditions
-     * @param $caches
-     * @param $modelName
-     *
-     * @return mixed
-     */
-    public static function insertKeysForConditions($key, $dropConditions, $caches, $modelName)
-    {
-        \Yii::info(
-            "Insert conditions in cache for " . $key,
-            'cache'
-        );
-        foreach ($dropConditions as $entryKey) {
-            if (!isset($caches[$modelName][$entryKey])) {
-                $caches[$modelName][$entryKey] = [];
-            }
-            $caches[$modelName][$entryKey][] = $key;
-        }
-
-        return $caches;
     }
 
     /**
@@ -231,26 +192,32 @@ class ActiveQueryCacheHelper extends CacheHelper
             'cache'
         );
         $result = \Yii::$app->cache->set($key, $data);
-        $caches = self::getCachesTable();
+
         if ($result) {
             foreach ($indexes as $modelName => $keys) {
-                if (!isset($caches[$modelName])) {
-                    $caches[$modelName] = [];
-                }
                 foreach ($keys as $pk) {
-                    if (!isset($caches[$modelName]["pk_" . $pk])) {
-                        $caches[$modelName]["pk_" . $pk] = [];
-                    }
-                    if (!in_array($key, $caches[$modelName]["pk_" . $pk])) {
-                        $caches[$modelName]["pk_" . $pk][] = $key;
-                    }
+                    CacheHelper::getRedis()->executeCommand("SADD", [$modelName . "_" . $pk, $key]);
                 }
-                if (count($dropConditions) > 0) {
-                    $caches = self::insertKeysForConditions($key, $dropConditions, $caches, $modelName);
+                foreach ($dropConditions as $event) {
+                    $setKey = "";
+                    switch ($event['type']) {
+                        case 'create':
+                            $setKey = $modelName . '_create';
+                            break;
+                        case 'update':
+                            $setKey = $modelName . '_update';
+                            break;
+                        default:
+                            continue;
+                            break;
+                    }
+                    $event['key'] = $key;
+                    CacheHelper::getRedis()->executeCommand("SADD", [$setKey, json_encode($event)]);
                 }
             }
         }
-        self::setCachesTable($caches);
+
+
     }
 
     /**
