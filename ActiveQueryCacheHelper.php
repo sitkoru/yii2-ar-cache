@@ -76,9 +76,7 @@ class ActiveQueryCacheHelper extends CacheHelper
             }
         }
 
-        if (isset($caches[$tableName])) {
-            $keys = self::getEventsKeys($caches, $tableName, $model, $keys);
-        }
+        $keys = self::getEventsKeys($model, $keys);
 
         return $keys;
     }
