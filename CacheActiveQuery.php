@@ -3,6 +3,7 @@
 namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
+use yii\db\ActiveQueryInterface;
 use yii\db\ActiveRecord;
 use yii\db\Command;
 
@@ -271,5 +272,45 @@ class CacheActiveQuery extends ActiveQuery
             }
             $relation->populateRelation($name, $models);
         }
+    }
+
+    /**
+     * @param ActiveRecord $model
+     * @param array        $with
+     *
+     * @return ActiveQueryInterface[]
+     */
+    private function normalizeRelations($model, $with)
+    {
+        $relations = [];
+        foreach ($with as $name => $callback) {
+            if (is_integer($name)) {
+                $name = $callback;
+                $callback = null;
+            }
+            if (($pos = strpos($name, '.')) !== false) {
+                // with sub-relations
+                $childName = substr($name, $pos + 1);
+                $name = substr($name, 0, $pos);
+            } else {
+                $childName = null;
+            }
+
+            if (!isset($relations[$name])) {
+                $relation = $model->getRelation($name);
+                $relation->primaryModel = null;
+                $relations[$name] = $relation;
+            } else {
+                $relation = $relations[$name];
+            }
+
+            if (isset($childName)) {
+                $relation->with[$childName] = $callback;
+            } elseif ($callback !== null) {
+                call_user_func($callback, $relation);
+            }
+        }
+
+        return $relations;
     }
 }
