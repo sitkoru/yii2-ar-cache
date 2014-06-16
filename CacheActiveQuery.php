@@ -267,11 +267,7 @@ class CacheActiveQuery extends ActiveQuery
         foreach ($relations as $name => $relation) {
             if ($relation->asArray === null) {
                 // inherit asArray from primary query
-                if ($this->asArray) {
-                    $relation->asArray();
-                } else {
-                    $relation->asArray = false;
-                }
+                $relation->asArray($this->asArray);
             }
             $relation->populateRelation($name, $models);
         }
