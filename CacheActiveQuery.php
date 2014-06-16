@@ -240,7 +240,9 @@ class CacheActiveQuery extends ActiveQuery
 
     public function asArray($value = true)
     {
-        $this->noCache = true;
+        if ($value) {
+            $this->noCache = true;
+        }
         return parent::asArray($value);
     }
 
@@ -252,5 +254,26 @@ class CacheActiveQuery extends ActiveQuery
         $params = [];
         $class = $this->modelClass;
         return $class::deleteAll($this->where, $params);
+    }
+
+    /**
+     * @inherit
+     */
+    public function findWith($with, &$models)
+    {
+        $primaryModel = new $this->modelClass;
+        $relations = $this->normalizeRelations($primaryModel, $with);
+        /** @var ActiveQuery $relation */
+        foreach ($relations as $name => $relation) {
+            if ($relation->asArray === null) {
+                // inherit asArray from primary query
+                if ($this->asArray) {
+                    $relation->asArray();
+                } else {
+                    $relation->asArray = false;
+                }
+            }
+            $relation->populateRelation($name, $models);
+        }
     }
 }
