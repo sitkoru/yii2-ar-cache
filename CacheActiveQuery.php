@@ -3,7 +3,6 @@
 namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
-use yii\db\ActiveQueryInterface;
 use yii\db\ActiveRecord;
 use yii\db\Command;
 
