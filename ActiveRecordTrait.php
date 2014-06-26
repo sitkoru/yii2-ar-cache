@@ -17,13 +17,13 @@ trait ActiveRecordTrait
         return new CacheActiveQuery(get_called_class());
     }
 
-    public function afterSave($insert)
+    public function afterSave($insert, $changedAttributes)
     {
         \Yii::info(
             ($insert ? "Insert" : "Update") . " " . get_called_class() . ": " . json_encode($this->attributes),
             'cache'
         );
-        parent::afterSave($insert);
+        parent::afterSave($insert, $changedAttributes);
         $this->insert = $insert;
         ActiveQueryCacheHelper::dropCaches($this);
     }
