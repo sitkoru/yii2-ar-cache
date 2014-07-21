@@ -12,6 +12,25 @@ use yii\db\Query;
  */
 class ActiveQueryCacheHelper extends CacheHelper
 {
+
+    private static $cacheTTL = 7200; //two hours by default
+
+    /**
+     * @param $ttl
+     */
+    public static function setTTL($ttl)
+    {
+        self::$cacheTTL = intval($ttl);
+    }
+
+    /**
+     * @return int
+     */
+    public static function getTTL()
+    {
+        return self::$cacheTTL;
+    }
+
     /**
      * @param ActiveRecord $model
      */
@@ -189,7 +208,7 @@ class ActiveQueryCacheHelper extends CacheHelper
             "Insert in cache for " . $key,
             'cache'
         );
-        $result = \Yii::$app->cache->set($key, $data);
+        $result = \Yii::$app->cache->set($key, $data, self::$cacheTTL);
 
         if ($result) {
             foreach ($indexes as $modelName => $keys) {
@@ -234,6 +253,6 @@ class ActiveQueryCacheHelper extends CacheHelper
         $query = new Query();
         $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
         )->queryAll();
-        return array($pkName, $results);
+        return [$pkName, $results];
     }
 }
