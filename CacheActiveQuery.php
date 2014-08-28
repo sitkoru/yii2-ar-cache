@@ -148,9 +148,10 @@ class CacheActiveQuery extends ActiveQuery
     {
         /** @var $class ActiveRecord */
         $class = $this->modelClass;
+        $pk = reset($model->getPrimaryKey(true));
         $indexes = [
             $class::tableName() => [
-                reset($model->getPrimaryKey(true))
+                $pk
             ]
         ];
         $toCache = clone $model;
