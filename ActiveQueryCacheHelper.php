@@ -81,7 +81,7 @@ class ActiveQueryCacheHelper extends CacheHelper
 
         $tableName = $model->tableName();
 
-        $pk = $model->getPrimaryKey(false);
+        $pk = reset($model->getPrimaryKey(true));
 
         $setKey = $tableName . "_" . $pk;
         $setKeys = CacheHelper::getSetMembers($setKey);
@@ -249,7 +249,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         /**
          * @var ActiveRecord $className
          */
-        $pkName = $className::primaryKey()[0];
+        $pkName = reset($className::primaryKey(true));
         $query = new Query();
         $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
         )->queryAll();
