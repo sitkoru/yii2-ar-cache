@@ -148,7 +148,8 @@ class CacheActiveQuery extends ActiveQuery
     {
         /** @var $class ActiveRecord */
         $class = $this->modelClass;
-        $pk = reset($model->getPrimaryKey(true));
+        $keys = $model->getPrimaryKey(true);
+        $pk = reset($keys);
         $indexes = [
             $class::tableName() => [
                 $pk
@@ -180,7 +181,8 @@ class CacheActiveQuery extends ActiveQuery
             $mToCache = clone $model;
             $mToCache->fromCache = true;
             $toCache[$index] = $mToCache;
-            $indexes[$class::tableName()][] = reset($mToCache->getPrimaryKey(true));
+            $pks = $mToCache->getPrimaryKey(true);
+            $indexes[$class::tableName()][] = reset($pks);
         }
 
         ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
