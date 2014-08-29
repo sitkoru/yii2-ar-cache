@@ -80,8 +80,8 @@ class ActiveQueryCacheHelper extends CacheHelper
         $keys = [];
 
         $tableName = $model->tableName();
-
-        $pk = reset($model->getPrimaryKey(true));
+        $pks = $model->getPrimaryKey(true);
+        $pk = reset($pks);
 
         $setKey = $tableName . "_" . $pk;
         $setKeys = CacheHelper::getSetMembers($setKey);
