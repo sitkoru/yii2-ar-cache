@@ -249,7 +249,8 @@ class ActiveQueryCacheHelper extends CacheHelper
         /**
          * @var ActiveRecord $className
          */
-        $pkName = reset($className::primaryKey(true));
+        $pks = $className::primaryKey(true);
+        $pkName = reset($pks);
         $query = new Query();
         $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
         )->queryAll();
