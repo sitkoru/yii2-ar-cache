@@ -191,20 +191,24 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string|null $param
-     * @param string|null $value
+     * @param string|null  $param
+     * @param string|array $value
      *
      * @return self
      */
     public function dropCacheOnCreate($param = null, $value = null)
     {
-        $event = [
-            'type'  => 'create',
-            'param' => $param,
-            'value' => $value
-        ];
-        $this->dropConditions[] = $event;
-
+        if ($value && !is_array($value)) {
+            $value = [$value];
+        }
+        foreach ($value as $val) {
+            $event = [
+                'type'  => 'create',
+                'param' => $param,
+                'value' => $val
+            ];
+            $this->dropConditions[] = $event;
+        }
         return $this;
     }
 
