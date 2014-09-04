@@ -198,9 +198,10 @@ class CacheActiveQuery extends ActiveQuery
      */
     public function dropCacheOnCreate($param = null, $value = null)
     {
-        if ($value && !is_array($value)) {
+        if (!is_array($value)) {
             $value = [$value];
         }
+
         foreach ($value as $val) {
             $event = [
                 'type'  => 'create',
@@ -209,6 +210,7 @@ class CacheActiveQuery extends ActiveQuery
             ];
             $this->dropConditions[] = $event;
         }
+
         return $this;
     }
 
