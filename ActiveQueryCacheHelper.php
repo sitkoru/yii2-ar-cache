@@ -276,6 +276,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     {
         $entry = json_encode(
             [
+                'date'   => time(),
                 'result' => $result,
                 'key'    => $key,
                 'query'  => $query
@@ -288,7 +289,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      * @param null $max
      * @return array
      */
-    public function getProfileRecords($max = null)
+    public static function getProfileRecords($max = null)
     {
         $records = [];
         if ($max) {
