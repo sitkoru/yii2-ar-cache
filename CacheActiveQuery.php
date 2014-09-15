@@ -4,7 +4,6 @@ namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
-use yii\db\Command;
 
 /**
  * Class CacheActiveQuery
@@ -22,7 +21,8 @@ class CacheActiveQuery extends ActiveQuery
     public function all($db = null)
     {
         $command = $this->createCommand($db);
-        $key = $this->generateCacheKey($command, 'all');
+        $rawSql = $command->rawSql;
+        $key = $this->generateCacheKey($rawSql, 'all');
         /**
          * @var ActiveRecord[] $fromCache
          */
@@ -32,6 +32,7 @@ class CacheActiveQuery extends ActiveQuery
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
+            ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ALL, $key, $rawSql);
             \Yii::info(
                 "Success for " . $key,
                 'cache'
@@ -53,6 +54,11 @@ class CacheActiveQuery extends ActiveQuery
                 "Miss for " . $key,
                 'cache'
             );
+            ActiveQueryCacheHelper::profile(
+                $this->noCache ? ActiveQueryCacheHelper::PROFILE_RESULT_NO_CACHE : ActiveQueryCacheHelper::PROFILE_RESULT_MISS_ALL,
+                $key,
+                $rawSql
+            );
             $models = parent::all($db);
             if ($models) {
                 if (!$this->noCache) {
@@ -72,7 +78,8 @@ class CacheActiveQuery extends ActiveQuery
     public function one($db = null)
     {
         $command = $this->createCommand($db);
-        $key = $this->generateCacheKey($command, 'one');
+        $rawSql = $command->rawSql;
+        $key = $this->generateCacheKey($command->rawSql, 'one');
         /**
          * @var ActiveRecord $fromCache
          */
@@ -82,6 +89,7 @@ class CacheActiveQuery extends ActiveQuery
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
+            ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
             \Yii::info(
                 "Success for " . $key,
                 'cache'
@@ -92,6 +100,11 @@ class CacheActiveQuery extends ActiveQuery
 
             return $fromCache;
         } else {
+            ActiveQueryCacheHelper::profile(
+                $this->noCache ? ActiveQueryCacheHelper::PROFILE_RESULT_NO_CACHE : ActiveQueryCacheHelper::PROFILE_RESULT_MISS_ONE,
+                $key,
+                $rawSql
+            );
             \Yii::info(
                 "Miss for " . $key,
                 'cache'
@@ -110,17 +123,17 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param Command $command
+     * @param string  $sql
      *
      * @param         $mode
      *
      * @return string
      */
-    private function generateCacheKey($command, $mode)
+    private function generateCacheKey($sql, $mode)
     {
         $key = $mode;
         $key .= strtolower($this->modelClass);
-        $key .= $command->rawSql;
+        $key .= $sql;
         if (count($this->where) == 0 && count($this->dropConditions) == 0) {
             $this->dropCacheOnCreate();
         }
@@ -264,4 +277,6 @@ class CacheActiveQuery extends ActiveQuery
         $class = $this->modelClass;
         return $class::deleteAll($this->where, $params);
     }
+
+
 }

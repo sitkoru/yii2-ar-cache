@@ -33,4 +33,24 @@ class CacheHelper
     {
         return self::getRedis()->executeCommand("SREM", [$setKey, $member]);
     }
+
+    public static function addToList($listKey, $member)
+    {
+        return self::getRedis()->executeCommand("LPUSH", [$listKey, $member]);
+    }
+
+    public static function getListMembers($listKey, $start = 0, $length = -1)
+    {
+        return self::getRedis()->executeCommand("LRANGE", [$listKey, $start, $length]);
+    }
+
+    public static function getListLength($listKey)
+    {
+        return self::getRedis()->executeCommand("LLEN", [$listKey]);
+    }
+
+    public static function deleteList($listKey)
+    {
+        return self::getRedis()->executeCommand("DEL", [$listKey]);
+    }
 }

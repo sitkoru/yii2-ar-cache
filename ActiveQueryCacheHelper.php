@@ -12,6 +12,14 @@ use yii\db\Query;
  */
 class ActiveQueryCacheHelper extends CacheHelper
 {
+    const PROFILE_RESULT_HIT_ONE = 0;
+    const PROFILE_RESULT_HIT_ALL = 1;
+    const PROFILE_RESULT_MISS_ONE = 2;
+    const PROFILE_RESULT_MISS_ALL = 3;
+    const PROFILE_RESULT_DROP_PK = 4;
+    const PROFILE_RESULT_DROP_DEPENDENCY = 5;
+    const PROFILE_RESULT_NO_CACHE = 6;
+
 
     private static $cacheTTL = 7200; //two hours by default
 
@@ -47,10 +55,12 @@ class ActiveQueryCacheHelper extends CacheHelper
                     "Drop cache " . $cacheKey['key'],
                     'cache'
                 );
+                self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $cacheKey['key']);
                 \Yii::$app->cache->delete($cacheKey['key']);
                 CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['member']);
             }
         }
+
     }
 
     /**
@@ -255,5 +265,44 @@ class ActiveQueryCacheHelper extends CacheHelper
         $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
         )->queryAll();
         return [$pkName, $results];
+    }
+
+    /***
+     * @param      $result
+     * @param      $key
+     * @param bool $query
+     */
+    public static function profile($result, $key, $query = false)
+    {
+        $entry = json_encode(
+            [
+                'result' => $result,
+                'key'    => $key,
+                'query'  => $query
+            ]
+        );
+        self::addToList("cacheLog", $entry);
+    }
+
+    /**
+     * @param null $max
+     * @return array
+     */
+    public function getProfileRecords($max = null)
+    {
+        $records = [];
+        if ($max) {
+            $jsonEntries = array_reverse(
+                CacheHelper::getListMembers("cacheLog", -$max, $max)
+            );
+        } else {
+            $jsonEntries = array_reverse(
+                CacheHelper::getListMembers("cacheLog")
+            );
+        }
+        foreach ($jsonEntries as $entry) {
+            $records[] = json_decode($entry, true);
+        }
+        return $records;
     }
 }
