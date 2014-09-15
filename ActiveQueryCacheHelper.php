@@ -20,6 +20,15 @@ class ActiveQueryCacheHelper extends CacheHelper
     const PROFILE_RESULT_DROP_DEPENDENCY = 5;
     const PROFILE_RESULT_NO_CACHE = 6;
 
+    public static $types = [
+        self::PROFILE_RESULT_HIT_ONE         => 'HIT ONE',
+        self::PROFILE_RESULT_HIT_ALL         => 'HIT ALL',
+        self::PROFILE_RESULT_MISS_ONE        => 'MISS ONE',
+        self::PROFILE_RESULT_MISS_ALL        => 'MISS ALL',
+        self::PROFILE_RESULT_DROP_PK         => 'DROP PK',
+        self::PROFILE_RESULT_DROP_DEPENDENCY => 'DROP DEPENDENCY',
+        self::PROFILE_RESULT_NO_CACHE        => 'NO CACHE'
+    ];
 
     private static $cacheTTL = 7200; //two hours by default
 
@@ -305,5 +314,17 @@ class ActiveQueryCacheHelper extends CacheHelper
             $records[] = json_decode($entry, true);
         }
         return $records;
+    }
+
+    public static function getProfileStats($records)
+    {
+        $stats = [];
+        foreach ($records as $record) {
+            if (!isset($stats[$record['result']])) {
+                $stats[$record['result']] = 0;
+            }
+            $stats[$record['result']]++;
+        }
+        return $stats;
     }
 }
