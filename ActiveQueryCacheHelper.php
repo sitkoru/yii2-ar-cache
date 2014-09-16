@@ -291,39 +291,32 @@ class ActiveQueryCacheHelper extends CacheHelper
                 'query'  => $query
             ]
         );
+        self::increment('cacheResult' . $result);
         self::addToList("cacheLog", $entry);
     }
 
     /**
-     * @param null $max
+     * @param int $count
+     * @param int $page
      * @return array
      */
-    public static function getProfileRecords($max = null)
+    public static function getProfileRecords($count = 100, $page = 1)
     {
         $records = [];
-        if ($max) {
-            $jsonEntries = array_reverse(
-                CacheHelper::getListMembers("cacheLog", -$max, $max)
-            );
-        } else {
-            $jsonEntries = array_reverse(
-                CacheHelper::getListMembers("cacheLog")
-            );
-        }
+        $start = $count * $page * -1;
+        $end = $count * ($page - 1) * -1;
+        $jsonEntries = CacheHelper::getListMembers("cacheLog", $start, $end);
         foreach ($jsonEntries as $entry) {
             $records[] = json_decode($entry, true);
         }
         return $records;
     }
 
-    public static function getProfileStats($records)
+    public static function getProfileStats()
     {
         $stats = [];
-        foreach ($records as $record) {
-            if (!isset($stats[$record['result']])) {
-                $stats[$record['result']] = 0;
-            }
-            $stats[$record['result']]++;
+        foreach (self::$types as $key => $typeName) {
+            $stats[$key] = self::getRedis()->get('cacheResult' . $key);
         }
         return $stats;
     }

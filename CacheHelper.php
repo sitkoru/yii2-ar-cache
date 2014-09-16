@@ -53,4 +53,9 @@ class CacheHelper
     {
         return self::getRedis()->executeCommand("DEL", [$listKey]);
     }
+
+    public static function increment($key)
+    {
+        return self::getRedis()->executeCommand("INCR", [$key]);
+    }
 }
