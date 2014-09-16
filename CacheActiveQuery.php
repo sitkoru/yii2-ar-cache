@@ -40,7 +40,7 @@ class CacheActiveQuery extends ActiveQuery
                     $operator = $parsedWhere[$i + 1]['base_expr'];
                     $value = $this->getWhereValue($parsedWhere, $operator, $i);
                     $where[] = [
-                        'col'      => $element['base_expr'],
+                        'col'      => trim($element['base_expr'], '`'),
                         'operator' => $operator,
                         'value'    => $value,
                     ];
