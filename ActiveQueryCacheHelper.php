@@ -312,6 +312,9 @@ class ActiveQueryCacheHelper extends CacheHelper
         return $records;
     }
 
+    /**
+     * @return array
+     */
     public static function getProfileStats()
     {
         $stats = [];
@@ -319,5 +322,13 @@ class ActiveQueryCacheHelper extends CacheHelper
             $stats[$key] = self::getRedis()->get('cacheResult' . $key);
         }
         return $stats;
+    }
+
+    /**
+     * @return integer
+     */
+    public static function getProfileRecordsCount()
+    {
+        return CacheHelper::getListLength('cacheLog');
     }
 }
