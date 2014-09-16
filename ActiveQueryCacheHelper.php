@@ -324,9 +324,10 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getProfileStats()
     {
         $stats = [
-            'get'  => 0,
-            'hit'  => 0,
-            'miss' => 0,
+            'get'   => 0,
+            'hit'   => 0,
+            'miss'  => 0,
+            'empty' => 0,
         ];
         foreach (self::$types as $key => $typeName) {
             $stats[$key] = self::getRedis()->get('cacheResult' . $key);
@@ -336,6 +337,10 @@ class ActiveQueryCacheHelper extends CacheHelper
             }
             if ($key == self::PROFILE_RESULT_MISS_ALL || $key == self::PROFILE_RESULT_MISS_ONE) {
                 $stats['get'] += $stats[$key];
+                $stats['miss'] += $stats[$key];
+            }
+            if ($key == self::PROFILE_RESULT_EMPTY_ALL || $key == self::PROFILE_RESULT_EMPTY_ONE) {
+                $stats['empty'] += $stats[$key];
                 $stats['miss'] += $stats[$key];
             }
         }
