@@ -2,6 +2,7 @@
 
 namespace sitkoru\cache\ar;
 
+use PHPSQL\Parser;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
 
@@ -14,6 +15,16 @@ class CacheActiveQuery extends ActiveQuery
 {
     private $dropConditions = [];
     private $noCache = false;
+
+    private function getParsedWhere($sql = null)
+    {
+        if (!$sql) {
+            $sql = $this->createCommand()->rawSql;
+        }
+        $parser = new Parser();
+        $parsed = $parser->parse($sql);
+        var_dump($parsed);
+    }
 
     /**
      * @inheritdoc
@@ -296,38 +307,44 @@ class CacheActiveQuery extends ActiveQuery
         if (count($this->where) == 0) {
             $this->dropCacheOnCreate();
         } else {
-            if (isset($this->where[0])) {
-                // operator format: operator, operand 1, operand 2, ...
-                $count = count($this->where);
-                for ($i = 1; $i < $count; $i++) {
-                    if (is_array($this->where[$i])) {
-                        foreach ($this->where[$i] as $key => $value) {
-                            $this->dropCacheOnCreate($key, $value);
-                        }
-                    } else {
-                        if (is_string($this->where[$i])) {
-                            $delimiter = false;
-                            switch (true) {
-                                case stripos($this->where[$i], "!=") !== false:
-                                    $delimiter = "!=";
-                                    break;
-                                case stripos($this->where[$i], ">=") !== false:
-                                    $delimiter = ">=";
-                                    break;
-                                case stripos($this->where[$i], "<=") !== false:
-                                    $delimiter = "<=";
-                                    break;
+            if (is_string($this->where)) {
+                $this->getParsedWhere();
+            } else {
+                if (isset($this->where[0])) {
+                    // operator format: operator, operand 1, operand 2, ...
+                    $count = count($this->where);
+                    for ($i = 1; $i < $count; $i++) {
+                        if (is_array($this->where[$i])) {
+                            foreach ($this->where[$i] as $key => $value) {
+                                $this->dropCacheOnCreate($key, $value);
                             }
-                            $split = explode($delimiter, $this->where[$i]);
-                            list($key, $value) = $split;
-                            $this->dropCacheOnCreate($key, $value);
+                        } else {
+                            if (is_string($this->where[$i])) {
+                                $delimiter = false;
+                                switch (true) {
+                                    case stripos($this->where[$i], "!=") !== false:
+                                        $delimiter = "!=";
+                                        break;
+                                    case stripos($this->where[$i], ">=") !== false:
+                                        $delimiter = ">=";
+                                        break;
+                                    case stripos($this->where[$i], "<=") !== false:
+                                        $delimiter = "<=";
+                                        break;
+                                }
+                                $split = explode($delimiter, $this->where[$i]);
+                                list($key, $value) = $split;
+                                $this->dropCacheOnCreate($key, $value);
+                                \common\helpers\LogHelper::log("Add drop for key " . $key . " and param " . $value);
+                            }
                         }
                     }
-                }
-            } else {
-                // hash format: 'column1' => 'value1', 'column2' => 'value2', ...
-                foreach ($this->where as $key => $value) {
-                    $this->dropCacheOnCreate($key, $value);
+                } else {
+                    // hash format: 'column1' => 'value1', 'column2' => 'value2', ...
+                    foreach ($this->where as $key => $value) {
+                        $this->dropCacheOnCreate($key, $value);
+                        \common\helpers\LogHelper::log("Add drop for key " . $key . " and param " . $value);
+                    }
                 }
             }
         }
