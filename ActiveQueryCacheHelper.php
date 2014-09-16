@@ -327,12 +327,12 @@ class ActiveQueryCacheHelper extends CacheHelper
         foreach (self::$types as $key => $typeName) {
             $stats[$key] = self::getRedis()->get('cacheResult' . $key);
             if ($key == self::PROFILE_RESULT_HIT_ALL || $key == self::PROFILE_RESULT_HIT_ONE) {
-                $stats['get']++;
-                $stats['hit']++;
+                $stats['get'] += $stats[$key];
+                $stats['hit'] += $stats[$key];
             }
             if ($key == self::PROFILE_RESULT_MISS_ALL || $key == self::PROFILE_RESULT_MISS_ONE) {
-                $stats['get']++;
-                $stats['miss']++;
+                $stats['get'] += $stats[$key];
+                $stats['miss'] += $stats[$key];
             }
         }
         return $stats;
