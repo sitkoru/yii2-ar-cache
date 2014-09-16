@@ -18,12 +18,91 @@ class CacheActiveQuery extends ActiveQuery
 
     private function getParsedWhere($sql = null)
     {
+        $where = [];
         if (!$sql) {
             $sql = $this->createCommand()->rawSql;
         }
         $parser = new Parser();
         $parsed = $parser->parse($sql);
-        var_dump($parsed);
+        if (isset($parsed['WHERE']) && count($parsed['WHERE']) > 0) {
+            //var_dump($parsed['WHERE']);
+            $this->parseWhere($parsed['WHERE'], $where);
+        }
+        return $where;
+    }
+
+    private function parseWhere($parsedWhere, &$where)
+    {
+        for ($i = 0; $i < count($parsedWhere);) {
+            $element = $parsedWhere[$i];
+            switch ($element['expr_type']) {
+                case 'colref':
+                    $operator = $parsedWhere[$i + 1]['base_expr'];
+                    $value = $this->getWhereValue($parsedWhere, $operator, $i);
+                    $where[] = [
+                        'col'      => $element['base_expr'],
+                        'operator' => $operator,
+                        'value'    => $value,
+                    ];
+                    $i += 3;
+                    break;
+                case 'operator':
+                    $i++;
+                    break;
+                case 'bracket_expression':
+                    $this->parseWhere($element['sub_tree'], $where);
+                    $i++;
+                    break;
+                default:
+                    $i++;
+                    break;
+            }
+        }
+        return $where;
+    }
+
+    /**
+     * @param $parsedWhere
+     * @param $operator
+     * @param $i
+     * @return array|string
+     */
+    private function getWhereValue($parsedWhere, &$operator, $i)
+    {
+        $value = null;
+        $valueType = $parsedWhere[$i + 2]['expr_type'];
+        switch ($valueType) {
+            case 'const':
+                $value = trim($parsedWhere[$i + 2]['base_expr'], "'");
+                break;
+            case 'in-list':
+                $value = [];
+                foreach ($parsedWhere[$i + 2]['sub_tree'] as $subElement) {
+                    if ($subElement['expr_type'] == 'const') {
+                        $value[] = $subElement['base_expr'];
+                    } else {
+                        //TODO: smthng
+                    }
+                }
+                break;
+            case 'operator':
+                switch ($parsedWhere[$i + 2]['base_expr']) {
+                    case 'IN':
+                        if ($operator == 'NOT') {
+                            $tmp = 'IN';
+                            $value = $this->getWhereValue($parsedWhere, $tmp, $i + 1);
+                            $operator = "NOT IN";
+                        }
+                        break;
+                    default:
+                        die($parsedWhere[$i + 2]['base_expr']);
+                }
+                break;
+            default:
+                die($valueType);
+                break;
+        }
+        return $value;
     }
 
     /**
@@ -304,48 +383,29 @@ class CacheActiveQuery extends ActiveQuery
      */
     private function generateDropConditionsForEmptyResult()
     {
+
         if (count($this->where) == 0) {
             $this->dropCacheOnCreate();
         } else {
-            if (is_string($this->where)) {
-                $this->getParsedWhere();
-            } else {
-                if (isset($this->where[0])) {
-                    // operator format: operator, operand 1, operand 2, ...
-                    $count = count($this->where);
-                    for ($i = 1; $i < $count; $i++) {
-                        if (is_array($this->where[$i])) {
-                            foreach ($this->where[$i] as $key => $value) {
-                                $this->dropCacheOnCreate($key, $value);
-                            }
-                        } else {
-                            if (is_string($this->where[$i])) {
-                                $delimiter = false;
-                                switch (true) {
-                                    case stripos($this->where[$i], "!=") !== false:
-                                        $delimiter = "!=";
-                                        break;
-                                    case stripos($this->where[$i], ">=") !== false:
-                                        $delimiter = ">=";
-                                        break;
-                                    case stripos($this->where[$i], "<=") !== false:
-                                        $delimiter = "<=";
-                                        break;
-                                }
-                                $split = explode($delimiter, $this->where[$i]);
-                                list($key, $value) = $split;
-                                $this->dropCacheOnCreate($key, $value);
-                                \common\helpers\LogHelper::log("Add drop for key " . $key . " and param " . $value);
-                            }
-                        }
-                    }
-                } else {
-                    // hash format: 'column1' => 'value1', 'column2' => 'value2', ...
-                    foreach ($this->where as $key => $value) {
-                        $this->dropCacheOnCreate($key, $value);
-                        \common\helpers\LogHelper::log("Add drop for key " . $key . " and param " . $value);
-                    }
+            $where = $this->getParsedWhere();
+            foreach ($where as $condition) {
+                if (in_array(
+                    $condition['operator'],
+                    [
+                        'NOT IN',
+                        '!=',
+                        '>',
+                        '<',
+                        '>=',
+                        '<=',
+                    ]
+                )) {
+                    continue;
                 }
+                if ($condition['value']) {
+                    continue;
+                }
+                $this->dropCacheOnCreate($condition['col'], $condition['value']);
             }
         }
     }
