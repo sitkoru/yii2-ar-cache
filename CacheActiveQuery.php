@@ -122,21 +122,30 @@ class CacheActiveQuery extends ActiveQuery
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
-            ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ALL, $key, $rawSql);
-            \Yii::info(
-                "Success for " . $key,
-                'cache'
-            );
+
             $resultFromCache = [];
-            foreach ($fromCache as $i => $model) {
-                $key = $i;
-                if ($model instanceof ActiveRecord) {
-                    $model->afterFind();
+            if ($fromCache == ['null']) {
+                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ALL, $key, $rawSql);
+                \Yii::info(
+                    "Success empty for " . $key,
+                    'cache'
+                );
+            } else {
+                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ALL, $key, $rawSql);
+                \Yii::info(
+                    "Success for " . $key,
+                    'cache'
+                );
+                foreach ($fromCache as $i => $model) {
+                    $key = $i;
+                    if ($model instanceof ActiveRecord) {
+                        $model->afterFind();
+                    }
+                    if (is_string($this->indexBy)) {
+                        $key = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
+                    }
+                    $resultFromCache[$key] = $model;
                 }
-                if (is_string($this->indexBy)) {
-                    $key = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
-                }
-                $resultFromCache[$key] = $model;
             }
             return $resultFromCache;
         } else {
@@ -179,15 +188,22 @@ class CacheActiveQuery extends ActiveQuery
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
-            ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
-            \Yii::info(
-                "Success for " . $key,
-                'cache'
-            );
-            if ($fromCache instanceof ActiveRecord) {
-                $fromCache->afterFind();
+            if ($fromCache == 'null') {
+                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ONE, $key, $rawSql);
+                \Yii::info(
+                    "Success empty for " . $key,
+                    'cache'
+                );
+            } else {
+                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
+                \Yii::info(
+                    "Success for " . $key,
+                    'cache'
+                );
+                if ($fromCache instanceof ActiveRecord) {
+                    $fromCache->afterFind();
+                }
             }
-
             return $fromCache;
         } else {
             ActiveQueryCacheHelper::profile(
@@ -261,7 +277,7 @@ class CacheActiveQuery extends ActiveQuery
             $toCache = clone $model;
             $toCache->fromCache = true;
         } else {
-            $toCache = null;
+            $toCache = 'null';
             $indexes[$class::tableName()] = ['null'];
             $this->generateDropConditionsForEmptyResult();
         }
@@ -295,7 +311,7 @@ class CacheActiveQuery extends ActiveQuery
             }
         } else {
             $toCache = [];
-            $indexes[$class::tableName()][] = 'null';
+            $indexes[$class::tableName()][] = ['null'];
             $this->generateDropConditionsForEmptyResult();
         }
 
@@ -402,7 +418,7 @@ class CacheActiveQuery extends ActiveQuery
                 )) {
                     continue;
                 }
-                if ($condition['value']) {
+                if (!$condition['value']) {
                     continue;
                 }
                 $this->dropCacheOnCreate($condition['col'], $condition['value']);

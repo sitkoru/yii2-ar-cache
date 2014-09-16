@@ -19,6 +19,8 @@ class ActiveQueryCacheHelper extends CacheHelper
     const PROFILE_RESULT_DROP_PK = 4;
     const PROFILE_RESULT_DROP_DEPENDENCY = 5;
     const PROFILE_RESULT_NO_CACHE = 6;
+    const PROFILE_RESULT_EMPTY_ONE = 7;
+    const PROFILE_RESULT_EMPTY_ALL = 8;
 
     public static $types = [
         self::PROFILE_RESULT_HIT_ONE         => 'HIT ONE',
@@ -27,7 +29,9 @@ class ActiveQueryCacheHelper extends CacheHelper
         self::PROFILE_RESULT_MISS_ALL        => 'MISS ALL',
         self::PROFILE_RESULT_DROP_PK         => 'DROP PK',
         self::PROFILE_RESULT_DROP_DEPENDENCY => 'DROP DEPENDENCY',
-        self::PROFILE_RESULT_NO_CACHE        => 'NO CACHE'
+        self::PROFILE_RESULT_NO_CACHE        => 'NO CACHE',
+        self::PROFILE_RESULT_EMPTY_ONE       => 'EMPTY ONE',
+        self::PROFILE_RESULT_EMPTY_ALL       => 'EMPTY ALL'
     ];
 
     private static $cacheTTL = 7200; //two hours by default
