@@ -283,16 +283,18 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function profile($result, $key, $query = false)
     {
-        $entry = json_encode(
-            [
-                'date'   => time(),
-                'result' => $result,
-                'key'    => $key,
-                'query'  => $query
-            ]
-        );
-        self::increment('cacheResult' . $result);
-        self::addToList("cacheLog", $entry);
+        if (defined('ENABLE_CACHE_PROFILE') && ENABLE_CACHE_PROFILE) {
+            $entry = json_encode(
+                [
+                    'date'   => time(),
+                    'result' => $result,
+                    'key'    => $key,
+                    'query'  => $query
+                ]
+            );
+            self::increment('cacheResult' . $result);
+            self::addToList("cacheLog", $entry);
+        }
     }
 
     /**
