@@ -194,6 +194,7 @@ class CacheActiveQuery extends ActiveQuery
                     "Success empty for " . $key,
                     'cache'
                 );
+                $fromCache = null;
             } else {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
                 \Yii::info(
