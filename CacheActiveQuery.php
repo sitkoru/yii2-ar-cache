@@ -61,9 +61,9 @@ class CacheActiveQuery extends ActiveQuery
             );
             $models = parent::all($db);
             if ($models) {
-                if (!$this->noCache) {
-                    $this->insertInCacheAll($key, $models);
-                }
+                //if (!$this->noCache) {
+                $this->insertInCacheAll($key, $models);
+                //}
 
                 return $models;
             } else {
@@ -110,11 +110,10 @@ class CacheActiveQuery extends ActiveQuery
                 'cache'
             );
             $model = parent::one();
+            if (!$this->noCache) {
+                $this->insertInCacheOne($key, $model);
+            }
             if ($model && $model instanceof ActiveRecord) {
-                if (!$this->noCache) {
-                    $this->insertInCacheOne($key, $model);
-                }
-
                 return $model;
             } else {
                 return null;
@@ -161,15 +160,21 @@ class CacheActiveQuery extends ActiveQuery
     {
         /** @var $class ActiveRecord */
         $class = $this->modelClass;
-        $keys = $model->getPrimaryKey(true);
-        $pk = reset($keys);
-        $indexes = [
-            $class::tableName() => [
-                $pk
-            ]
-        ];
-        $toCache = clone $model;
-        $toCache->fromCache = true;
+        if ($model) {
+            $keys = $model->getPrimaryKey(true);
+            $pk = reset($keys);
+            $indexes = [
+                $class::tableName() => [
+                    $pk
+                ]
+            ];
+            $toCache = clone $model;
+            $toCache->fromCache = true;
+        } else {
+            $toCache = null;
+            $indexes[$class::tableName()] = ['null'];
+            $this->generateDropConditionsForEmptyResult();
+        }
         ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
 
         return true;
@@ -189,13 +194,19 @@ class CacheActiveQuery extends ActiveQuery
             $class::tableName() => [
             ]
         ];
-        $toCache = $models;
-        foreach ($toCache as $index => $model) {
-            $mToCache = clone $model;
-            $mToCache->fromCache = true;
-            $toCache[$index] = $mToCache;
-            $pks = $mToCache->getPrimaryKey(true);
-            $indexes[$class::tableName()][] = reset($pks);
+        if ($models) {
+            $toCache = $models;
+            foreach ($toCache as $index => $model) {
+                $mToCache = clone $model;
+                $mToCache->fromCache = true;
+                $toCache[$index] = $mToCache;
+                $pks = $mToCache->getPrimaryKey(true);
+                $indexes[$class::tableName()][] = reset($pks);
+            }
+        } else {
+            $toCache = [];
+            $indexes[$class::tableName()][] = 'null';
+            $this->generateDropConditionsForEmptyResult();
         }
 
         ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
@@ -276,6 +287,50 @@ class CacheActiveQuery extends ActiveQuery
         $params = [];
         $class = $this->modelClass;
         return $class::deleteAll($this->where, $params);
+    }
+
+    /**
+     */
+    private function generateDropConditionsForEmptyResult()
+    {
+        if (count($this->where) == 0) {
+            $this->dropCacheOnCreate();
+        } else {
+            if (isset($this->where[0])) {
+                // operator format: operator, operand 1, operand 2, ...
+                $count = count($this->where);
+                for ($i = 1; $i < $count; $i++) {
+                    if (is_array($this->where[$i])) {
+                        foreach ($this->where[$i] as $key => $value) {
+                            $this->dropCacheOnCreate($key, $value);
+                        }
+                    } else {
+                        if (is_string($this->where[$i])) {
+                            $delimiter = false;
+                            switch (true) {
+                                case stripos($this->where[$i], "!=") !== false:
+                                    $delimiter = "!=";
+                                    break;
+                                case stripos($this->where[$i], ">=") !== false:
+                                    $delimiter = ">=";
+                                    break;
+                                case stripos($this->where[$i], "<=") !== false:
+                                    $delimiter = "<=";
+                                    break;
+                            }
+                            $split = explode($delimiter, $this->where[$i]);
+                            list($key, $value) = $split;
+                            $this->dropCacheOnCreate($key, $value);
+                        }
+                    }
+                }
+            } else {
+                // hash format: 'column1' => 'value1', 'column2' => 'value2', ...
+                foreach ($this->where as $key => $value) {
+                    $this->dropCacheOnCreate($key, $value);
+                }
+            }
+        }
     }
 
 
