@@ -305,8 +305,8 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getProfileRecords($count = 100, $page = 1)
     {
         $records = [];
-        $start = $count * $page * -1;
-        $end = $count * ($page - 1) * -1;
+        $end = $count * $page;
+        $start = ($count * ($page - 1));
         $jsonEntries = CacheHelper::getListMembers("cacheLog", $start, $end);
         foreach ($jsonEntries as $entry) {
             $records[] = json_decode($entry, true);
@@ -319,9 +319,21 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getProfileStats()
     {
-        $stats = [];
+        $stats = [
+            'get'  => 0,
+            'hit'  => 0,
+            'miss' => 0,
+        ];
         foreach (self::$types as $key => $typeName) {
             $stats[$key] = self::getRedis()->get('cacheResult' . $key);
+            if ($key == self::PROFILE_RESULT_HIT_ALL || self::PROFILE_RESULT_HIT_ONE) {
+                $stats['get']++;
+                $stats['hit']++;
+            }
+            if ($key == self::PROFILE_RESULT_MISS_ALL || self::PROFILE_RESULT_MISS_ONE) {
+                $stats['get']++;
+                $stats['miss']++;
+            }
         }
         return $stats;
     }
