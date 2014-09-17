@@ -160,9 +160,9 @@ class CacheActiveQuery extends ActiveQuery
             );
             $models = parent::all($db);
             if ($models) {
-                //if (!$this->noCache) {
-                $this->insertInCacheAll($key, $models);
-                //}
+                if (!$this->noCache) {
+                    $this->insertInCacheAll($key, $models);
+                }
 
                 return $models;
             } else {
