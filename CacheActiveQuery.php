@@ -306,8 +306,8 @@ class CacheActiveQuery extends ActiveQuery
                 $indexes[$class::tableName()][] = reset($pks);
             }
         } else {
-            $toCache = [];
-            $indexes[$class::tableName()][] = ['null'];
+            $toCache = ['null'];
+            $indexes[$class::tableName()][] = null;
             $this->generateDropConditionsForEmptyResult();
         }
 
