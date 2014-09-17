@@ -206,15 +206,18 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
-     * @param $singleModel
-     * @param $keys
+     * @param ActiveRecordTrait $singleModel
+     * @param                   $keys
      *
      * @return array
      */
     public static function getEventsKeys($singleModel, $keys)
     {
-        $keys = self::getKeysForCreateEvent($singleModel, $keys);
-        $keys = self::getKeysForUpdateEvent($singleModel, $keys);
+        if ($singleModel->insert) {
+            $keys = self::getKeysForCreateEvent($singleModel, $keys);
+        } else {
+            $keys = self::getKeysForUpdateEvent($singleModel, $keys);
+        }
 
         return $keys;
     }
