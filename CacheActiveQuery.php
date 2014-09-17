@@ -159,15 +159,10 @@ class CacheActiveQuery extends ActiveQuery
                 $rawSql
             );
             $models = parent::all($db);
-            if ($models) {
-                if (!$this->noCache) {
-                    $this->insertInCacheAll($key, $models);
-                }
-
-                return $models;
-            } else {
-                return [];
+            if (!$this->noCache) {
+                $this->insertInCacheAll($key, $models);
             }
+            return $models;
         }
     }
 
