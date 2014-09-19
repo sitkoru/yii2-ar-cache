@@ -244,6 +244,7 @@ class CacheActiveQuery extends ActiveQuery
      * @param $parsedWhere
      * @param $operator
      * @param $i
+     *
      * @return array|string
      */
     private function getWhereValue($parsedWhere, &$operator, &$i)
@@ -279,8 +280,17 @@ class CacheActiveQuery extends ActiveQuery
                     case 'IN':
                         if ($operator == 'NOT') {
                             $tmp = 'IN';
-                            $value = $this->getWhereValue($parsedWhere, $tmp, $i + 1);
+                            $i = $i + 1;
+                            $value = $this->getWhereValue($parsedWhere, $tmp, $i);
                             $operator = "NOT IN";
+                        }
+                        break;
+                    case 'NOT':
+                        if ($operator == 'IS') {
+                            $tmp = 'NOT';
+                            $i = $i + 1;
+                            $value = $this->getWhereValue($parsedWhere, $tmp, $i);
+                            $operator = "IS NOT";
                         }
                         break;
                     default:
