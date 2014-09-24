@@ -53,6 +53,43 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
+     * @param  $className
+     * @param  $condition
+     * @param  $params
+     */
+    public static function dropCachesForCondition($className, $condition, $params)
+    {
+        list($pkName, $results) = self::getModelsToDelete($className, $condition, $params);
+        if ($results) {
+            $model = new $className;
+            foreach ($results as $row) {
+                $model->$pkName = $row[$pkName];
+                self::dropCaches($model);
+            }
+        }
+    }
+
+    /**
+     * @param $className
+     * @param $condition
+     * @param $params
+     *
+     * @return array
+     */
+    protected static function getModelsToDelete($className, $condition, $params)
+    {
+        /**
+         * @var ActiveRecord $className
+         */
+        $pks = $className::primaryKey(true);
+        $pkName = reset($pks);
+        $query = new Query();
+        $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
+        )->queryAll();
+        return [$pkName, $results];
+    }
+
+    /**
      * @param ActiveRecord $model
      */
     public static function dropCaches($model)
@@ -74,23 +111,6 @@ class ActiveQueryCacheHelper extends CacheHelper
             }
         }
 
-    }
-
-    /**
-     * @param  $className
-     * @param  $condition
-     * @param  $params
-     */
-    public static function dropCachesForCondition($className, $condition, $params)
-    {
-        list($pkName, $results) = self::getModelsToDelete($className, $condition, $params);
-        if ($results) {
-            $model = new $className;
-            foreach ($results as $row) {
-                $model->$pkName = $row[$pkName];
-                self::dropCaches($model);
-            }
-        }
     }
 
     /**
@@ -124,6 +144,23 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
+     * @param ActiveRecordTrait $singleModel
+     * @param                   $keys
+     *
+     * @return array
+     */
+    public static function getEventsKeys($singleModel, $keys)
+    {
+        //if ($singleModel->insert) {
+        $keys = self::getKeysForCreateEvent($singleModel, $keys);
+        //} else {
+        $keys = self::getKeysForUpdateEvent($singleModel, $keys);
+        // }
+
+        return $keys;
+    }
+
+    /**
      * @param $singleModel
      * @param $keys
      *
@@ -132,8 +169,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
     {
 
-        $setName = $singleModel::tableName() . "_create";
-        $setMembers = CacheHelper::getSetMembers($setName);
+        list($setMembers, $setName) = self::getEvents($singleModel::tableName(), 'create');
         if ($setMembers) {
             foreach ($setMembers as $member) {
                 $event = json_decode($member, true);
@@ -162,6 +198,13 @@ class ActiveQueryCacheHelper extends CacheHelper
         return $keys;
     }
 
+    private static function getEvents($tableName, $type)
+    {
+        $setName = $tableName . "_" . $type;
+        $setMembers = CacheHelper::getSetMembers($setName);
+        return [$setMembers, $setName];
+    }
+
     /**
      * @param ActiveRecord $singleModel
      * @param array        $keys
@@ -170,9 +213,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getKeysForUpdateEvent($singleModel, $keys)
     {
-
-        $setName = $singleModel::tableName() . "_update";
-        $setMembers = CacheHelper::getSetMembers($setName);
+        list($setMembers, $setName) = self::getEvents($singleModel::tableName(), 'update');
         if ($setMembers) {
             foreach ($setMembers as $member) {
                 $event = json_decode($member, true);
@@ -205,21 +246,25 @@ class ActiveQueryCacheHelper extends CacheHelper
         return $keys;
     }
 
-    /**
-     * @param ActiveRecordTrait $singleModel
-     * @param                   $keys
-     *
-     * @return array
+    /***
+     * @param      $result
+     * @param      $key
+     * @param bool $query
      */
-    public static function getEventsKeys($singleModel, $keys)
+    public static function profile($result, $key, $query = false)
     {
-        if ($singleModel->insert) {
-            $keys = self::getKeysForCreateEvent($singleModel, $keys);
-        } else {
-            $keys = self::getKeysForUpdateEvent($singleModel, $keys);
+        if (defined('ENABLE_CACHE_PROFILE') && ENABLE_CACHE_PROFILE) {
+            $entry = json_encode(
+                [
+                    'date'   => time(),
+                    'result' => $result,
+                    'key'    => $key,
+                    'query'  => $query
+                ]
+            );
+            self::increment('cacheResult' . $result);
+            self::addToList("cacheLog", $entry);
         }
-
-        return $keys;
     }
 
     /**
@@ -261,47 +306,6 @@ class ActiveQueryCacheHelper extends CacheHelper
         }
 
 
-    }
-
-    /**
-     * @param $className
-     * @param $condition
-     * @param $params
-     *
-     * @return array
-     */
-    protected static function getModelsToDelete($className, $condition, $params)
-    {
-        /**
-         * @var ActiveRecord $className
-         */
-        $pks = $className::primaryKey(true);
-        $pkName = reset($pks);
-        $query = new Query();
-        $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
-        )->queryAll();
-        return [$pkName, $results];
-    }
-
-    /***
-     * @param      $result
-     * @param      $key
-     * @param bool $query
-     */
-    public static function profile($result, $key, $query = false)
-    {
-        if (defined('ENABLE_CACHE_PROFILE') && ENABLE_CACHE_PROFILE) {
-            $entry = json_encode(
-                [
-                    'date'   => time(),
-                    'result' => $result,
-                    'key'    => $key,
-                    'query'  => $query
-                ]
-            );
-            self::increment('cacheResult' . $result);
-            self::addToList("cacheLog", $entry);
-        }
     }
 
     /**
@@ -356,5 +360,52 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getProfileRecordsCount()
     {
         return CacheHelper::getListLength('cacheLog');
+    }
+
+    /**
+     * @param ActiveRecord $className
+     * @param string       $type
+     * @param string|null  $param
+     * @param string|null  $value
+     */
+    public static function dropCachesForEvent($className, $type, $param = null, $value = null)
+    {
+        list($setMembers, $setName) = self::getEvents($className::tableName(), $type);
+
+        if ($setMembers) {
+            $keys = [];
+            foreach ($setMembers as $member) {
+                $event = json_decode($member, true);
+                if (count($event['conditions']) > 0) {
+                    $match = true;
+                    foreach ($event['conditions'] as $eventParam => $eventValue) {
+                        if ($eventParam != $param || $eventValue != $value) {
+                            $match = false;
+                        }
+                    }
+                    if ($match) {
+                        $keys[] = [
+                            'setKey' => $setName,
+                            'key'    => $event['key'],
+                            'member' => $member
+
+                        ];
+                    }
+                } else {
+                    $keys[] = [
+                        'setKey' => $setName,
+                        'key'    => $event['key'],
+                        'member' => $member
+
+                    ];
+                }
+            }
+            foreach ($keys as $key) {
+                self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $key['key']);
+                \Yii::$app->cache->delete($key['key']);
+                CacheHelper::removeFromSet($key['setKey'], $key['member']);
+            }
+        }
+
     }
 }
