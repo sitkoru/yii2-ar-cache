@@ -376,28 +376,53 @@ class ActiveQueryCacheHelper extends CacheHelper
             $keys = [];
             foreach ($setMembers as $member) {
                 $event = json_decode($member, true);
-                if (count($event['conditions']) > 0) {
-                    $match = true;
-                    foreach ($event['conditions'] as $eventParam => $eventValue) {
-                        if ($eventParam != $param || $eventValue != $value) {
-                            $match = false;
+                switch ($type) {
+                    case 'create':
+                        if (isset($event['param']) && isset($event['value'])) {
+                            $eventParam = $event['param'];
+                            $eventValue = $event['value'];
+                            if ($eventParam == $param && $eventValue == $value) {
+                                $keys[] = [
+                                    'setKey' => $setName,
+                                    'key'    => $event['key'],
+                                    'member' => $member
+
+                                ];
+                            }
+                        } else {
+                            $keys[] = [
+                                'setKey' => $setName,
+                                'key'    => $event['key'],
+                                'member' => $member
+
+                            ];
                         }
-                    }
-                    if ($match) {
-                        $keys[] = [
-                            'setKey' => $setName,
-                            'key'    => $event['key'],
-                            'member' => $member
+                        break;
+                    case 'update':
+                        if (isset($event['conditions']) && count($event['conditions']) > 0) {
+                            $match = true;
+                            foreach ($event['conditions'] as $eventParam => $eventValue) {
+                                if (($eventParam && !$param) || $eventParam != $param || $eventValue != $value) {
+                                    $match = false;
+                                }
+                            }
+                            if ($match) {
+                                $keys[] = [
+                                    'setKey' => $setName,
+                                    'key'    => $event['key'],
+                                    'member' => $member
 
-                        ];
-                    }
-                } else {
-                    $keys[] = [
-                        'setKey' => $setName,
-                        'key'    => $event['key'],
-                        'member' => $member
+                                ];
+                            }
+                        } else {
+                            $keys[] = [
+                                'setKey' => $setName,
+                                'key'    => $event['key'],
+                                'member' => $member
 
-                    ];
+                            ];
+                        }
+                        break;
                 }
             }
             foreach ($keys as $key) {
