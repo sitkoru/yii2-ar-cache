@@ -320,6 +320,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                             break;
                     }
                     $event['key'] = $key;
+                    self::log("IC " . $setKey . " " . json_encode($event));
                     CacheHelper::addToSet($setKey, json_encode($event));
                 }
             }
