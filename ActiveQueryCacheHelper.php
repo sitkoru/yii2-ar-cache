@@ -9,9 +9,20 @@ use yii\db\Query;
  * Class ActiveQueryCacheHelper
  *
  * @package sitkoru\cache\ar
+ *
  */
 class ActiveQueryCacheHelper extends CacheHelper
 {
+    private static $logClass;
+
+    public static function log($message)
+    {
+        if (self::$logClass) {
+            $logger = self::$logClass;
+            $logger::log($message);
+        }
+    }
+
     const PROFILE_RESULT_HIT_ONE = 0;
     const PROFILE_RESULT_HIT_ALL = 1;
     const PROFILE_RESULT_MISS_ONE = 2;
@@ -50,6 +61,22 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getTTL()
     {
         return self::$cacheTTL;
+    }
+
+    /**
+     * @param $className
+     */
+    public static function setLogClass($className)
+    {
+        self::$logClass = intval($className);
+    }
+
+    /**
+     * @return string|null
+     */
+    public static function getLogClass()
+    {
+        return self::$logClass;
     }
 
     /**
@@ -94,17 +121,13 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function dropCaches($model)
     {
-        \Yii::info(
-            "Drop caches. Look depended caches for " . $model::className() . " " . json_encode($model->attributes),
-            'cache'
+        self::log(
+            "Drop caches. Look depended caches for " . $model::className() . " " . json_encode($model->attributes)
         );
         $depended = self::getDependedCaches($model);
         if (count($depended)) {
             foreach ($depended as $cacheKey) {
-                \Yii::info(
-                    "Drop cache " . $cacheKey['key'],
-                    'cache'
-                );
+                self::log("Drop cache " . $cacheKey['key']);
                 self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $cacheKey['key']);
                 \Yii::$app->cache->delete($cacheKey['key']);
                 CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['member']);
@@ -275,10 +298,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function insertInCache($key, $data, $indexes, $dropConditions)
     {
-        \Yii::info(
-            "Insert in cache for " . $key,
-            'cache'
-        );
+        self::log("Insert in cache for " . $key);
         $result = \Yii::$app->cache->set($key, $data, self::$cacheTTL);
 
         if ($result) {
