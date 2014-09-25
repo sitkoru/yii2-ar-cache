@@ -122,12 +122,12 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function dropCaches($model)
     {
         self::log(
-            "Drop caches. Look depended caches for " . $model::className() . " " . json_encode($model->attributes)
+            "LD " . $model::className() . " " . json_encode($model->attributes)
         );
         $depended = self::getDependedCaches($model);
         if (count($depended)) {
             foreach ($depended as $cacheKey) {
-                self::log("Drop cache " . $cacheKey['key']);
+                self::log("D " . $cacheKey['key']);
                 self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $cacheKey['key']);
                 \Yii::$app->cache->delete($cacheKey['key']);
                 CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['member']);
@@ -298,7 +298,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function insertInCache($key, $data, $indexes, $dropConditions)
     {
-        self::log("Insert in cache for " . $key);
+        self::log("I " . $key);
         $result = \Yii::$app->cache->set($key, $data, self::$cacheTTL);
 
         if ($result) {

@@ -28,7 +28,7 @@ class CacheActiveQuery extends ActiveQuery
          * @var ActiveRecord[] $fromCache
          */
         ActiveQueryCacheHelper::log(
-            "Look in cache for " . $key
+            "LA " . $key
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
@@ -37,12 +37,12 @@ class CacheActiveQuery extends ActiveQuery
             if ($fromCache == ['null']) {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ALL, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "Success empty for " . $key
+                    "SEA " . $key
                 );
             } else {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ALL, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "Success for " . $key
+                    "SA " . $key
                 );
                 foreach ($fromCache as $i => $model) {
                     $key = $i;
@@ -58,7 +58,7 @@ class CacheActiveQuery extends ActiveQuery
             return $resultFromCache;
         } else {
             ActiveQueryCacheHelper::log(
-                "Miss for " . $key
+                "MA " . $key
             );
             ActiveQueryCacheHelper::profile(
                 $this->noCache ? ActiveQueryCacheHelper::PROFILE_RESULT_NO_CACHE : ActiveQueryCacheHelper::PROFILE_RESULT_MISS_ALL,
@@ -96,7 +96,7 @@ class CacheActiveQuery extends ActiveQuery
             $key .= "offset" . $this->offset;
         }
         ActiveQueryCacheHelper::log(
-            "Generate cache key for " . $key . ':  ' . md5($key)
+            "G " . $sql . ':  ' . md5($key)
         );
         return md5($key);
     }
@@ -313,20 +313,20 @@ class CacheActiveQuery extends ActiveQuery
          * @var ActiveRecord $fromCache
          */
         ActiveQueryCacheHelper::log(
-            "Look in cache for " . $key
+            "LO " . $key
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
             if ($fromCache == 'null') {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ONE, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "Success empty for " . $key
+                    "SEO " . $key
                 );
                 $fromCache = null;
             } else {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "Success for " . $key
+                    "SO " . $key
                 );
                 if ($fromCache instanceof ActiveRecord) {
                     $fromCache->afterFind();
@@ -340,7 +340,7 @@ class CacheActiveQuery extends ActiveQuery
                 $rawSql
             );
             ActiveQueryCacheHelper::log(
-                "Miss for " . $key
+                "MO " . $key
             );
             $model = parent::one();
             if (!$this->noCache) {
