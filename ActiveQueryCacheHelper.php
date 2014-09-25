@@ -68,7 +68,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function setLogClass($className)
     {
-        self::$logClass = intval($className);
+        self::$logClass = $className;
     }
 
     /**
