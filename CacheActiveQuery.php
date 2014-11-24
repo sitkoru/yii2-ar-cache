@@ -74,7 +74,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string  $sql
+     * @param string $sql
      *
      * @param         $mode
      *
@@ -102,7 +102,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string|null  $param
+     * @param string|null $param
      * @param string|array $value
      *
      * @return self
@@ -190,7 +190,7 @@ class CacheActiveQuery extends ActiveQuery
         }
     }
 
-    private function getParsedWhere($sql = null)
+    protected function getParsedWhere($sql = null)
     {
         $where = [];
         if (!$sql) {
@@ -385,7 +385,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string     $param
+     * @param string $param
      * @param null|array $condition
      *
      * @return self
