@@ -335,6 +335,9 @@ class ActiveQueryCacheHelper extends CacheHelper
     {
         $keys = $model->getPrimaryKey(true);
         $pk = reset($keys);
+        ActiveQueryCacheHelper::log(
+            "RK " . $key
+        );
         CacheHelper::addToSet($model->tableName() . "_" . $pk, $key);
     }
 
