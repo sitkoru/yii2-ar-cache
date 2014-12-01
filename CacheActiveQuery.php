@@ -47,6 +47,8 @@ class CacheActiveQuery extends ActiveQuery
                 foreach ($fromCache as $i => $model) {
                     $key = $i;
                     if ($model instanceof ActiveRecord) {
+                        //restore key
+                        ActiveQueryCacheHelper::insertKeyForPK($model, $key);
                         $model->afterFind();
                     }
                     if (is_string($this->indexBy)) {
@@ -74,7 +76,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string $sql
+     * @param string  $sql
      *
      * @param         $mode
      *
@@ -102,7 +104,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string|null $param
+     * @param string|null  $param
      * @param string|array $value
      *
      * @return self
@@ -329,6 +331,8 @@ class CacheActiveQuery extends ActiveQuery
                     "SO " . $key
                 );
                 if ($fromCache instanceof ActiveRecord) {
+                    //restore key
+                    ActiveQueryCacheHelper::insertKeyForPK($fromCache, $key);
                     $fromCache->afterFind();
                 }
             }
@@ -385,7 +389,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @param string $param
+     * @param string     $param
      * @param null|array $condition
      *
      * @return self

@@ -111,8 +111,8 @@ class ActiveQueryCacheHelper extends CacheHelper
         $pks = $className::primaryKey(true);
         $pkName = reset($pks);
         $query = new Query();
-        $results = $query->select($pkName)->from($className::tableName())->where($condition, $params)->createCommand(
-        )->queryAll();
+        $results = $query->select($pkName)->from($className::tableName())->where($condition,
+            $params)->createCommand()->queryAll();
         return [$pkName, $results];
     }
 
@@ -325,8 +325,17 @@ class ActiveQueryCacheHelper extends CacheHelper
                 }
             }
         }
+    }
 
-
+    /**
+     * @param ActiveRecord $model
+     * @param              $key
+     */
+    public static function insertKeyForPK(ActiveRecord $model, $key)
+    {
+        $keys = $model->getPrimaryKey(true);
+        $pk = reset($keys);
+        CacheHelper::addToSet($model->tableName() . "_" . $pk, $key);
     }
 
     /**
