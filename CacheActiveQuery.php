@@ -215,18 +215,23 @@ class CacheActiveQuery extends ActiveQuery
                 case 'colref':
                     $operator = $parsedWhere[$i + 1]['base_expr'];
                     $value = $this->getWhereValue($parsedWhere, $operator, $i);
-                    $where[] = [
-                        'col'      => trim($element['base_expr'], '`'),
-                        'operator' => $operator,
-                        'value'    => $value,
-                    ];
-                    $i += 3;
+                    if ($value) {
+                        $where[] = [
+                            'col'      => trim($element['base_expr'], '`'),
+                            'operator' => $operator,
+                            'value'    => $value,
+                        ];
+                        $i += 3;
+                    }
                     break;
                 case 'operator':
                     $i++;
                     break;
                 case 'bracket_expression':
-                    $this->parseWhere($element['sub_tree'], $where);
+                    $base = $element['base_expr']; //(`groupId`, `type`, `level`)
+                    if (stripos($base, ',') === false) {
+                        $this->parseWhere($element['sub_tree'], $where);
+                    }
                     $i++;
                     break;
                 default:
@@ -268,8 +273,13 @@ class CacheActiveQuery extends ActiveQuery
                         $value = trim($parsedWhere[$i + 3]['base_expr'], "'");
                         $i++;
                         break;
+                    case ',':
+                        var_dump($parsedWhere);
+                        break;
                     default:
-                        die($parsedWhere[$i + 2]);
+                        $i++;
+                    //var_dump($parsedWhere);
+                    //die('Colref: ' . json_encode($parsedWhere[$i + 2]));
                 }
                 break;
             case 'operator':
@@ -291,13 +301,14 @@ class CacheActiveQuery extends ActiveQuery
                         }
                         break;
                     default:
-                        die($parsedWhere[$i + 2]);
+                        die('Default: ' . $parsedWhere[$i + 2]);
                 }
                 break;
             default:
                 var_dump($i);
                 var_dump($parsedWhere);
-                die($valueType);
+                var_dump($valueType);
+                die('Error: ' . $valueType);
                 break;
         }
         return $value;
@@ -438,6 +449,4 @@ class CacheActiveQuery extends ActiveQuery
         $class = $this->modelClass;
         return $class::deleteAll($this->where, $params);
     }
-
-
 }
