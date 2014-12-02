@@ -215,7 +215,7 @@ class CacheActiveQuery extends ActiveQuery
                 case 'colref':
                     $operator = $parsedWhere[$i + 1]['base_expr'];
                     $value = $this->getWhereValue($parsedWhere, $operator, $i);
-                    if ($value) {
+                    if ($value != 'skipparse') {
                         $where[] = [
                             'col'      => trim($element['base_expr'], '`'),
                             'operator' => $operator,
@@ -275,8 +275,10 @@ class CacheActiveQuery extends ActiveQuery
                         break;
                     case ',':
                         var_dump($parsedWhere);
+                        $value = 'skipparse';
                         break;
                     default:
+                        $value = 'skipparse';
                         $i++;
                     //var_dump($parsedWhere);
                     //die('Colref: ' . json_encode($parsedWhere[$i + 2]));
