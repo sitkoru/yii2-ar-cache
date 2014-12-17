@@ -118,13 +118,14 @@ class ActiveQueryCacheHelper extends CacheHelper
 
     /**
      * @param ActiveRecord $model
+     * @param bool         $withEvents
      */
-    public static function dropCaches($model)
+    public static function dropCaches($model, $withEvents = true)
     {
         self::log(
             "LD " . $model::className() . " " . json_encode($model->attributes)
         );
-        $depended = self::getDependedCaches($model);
+        $depended = self::getDependedCaches($model, $withEvents);
         if (count($depended)) {
             foreach ($depended as $cacheKey) {
                 self::log("D " . $cacheKey['key']);
@@ -139,9 +140,10 @@ class ActiveQueryCacheHelper extends CacheHelper
     /**
      * @param ActiveRecord $model
      *
+     * @param              $withEvents
      * @return array
      */
-    public static function getDependedCaches(ActiveRecord $model)
+    public static function getDependedCaches(ActiveRecord $model, $withEvents)
     {
         $keys = [];
 
@@ -161,7 +163,9 @@ class ActiveQueryCacheHelper extends CacheHelper
             }
         }
 
-        $keys = self::getEventsKeys($model, $keys);
+        if ($withEvents) {
+            $keys = self::getEventsKeys($model, $keys);
+        }
 
         return $keys;
     }
@@ -333,12 +337,12 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function insertKeyForPK(ActiveRecord $model, $key)
     {
-        $keys = $model->getPrimaryKey(true);
+        /*$keys = $model->getPrimaryKey(true);
         $pk = reset($keys);
         ActiveQueryCacheHelper::log(
             "RK " . $key
         );
-        CacheHelper::addToSet($model->tableName() . "_" . $pk, $key);
+        CacheHelper::addToSet($model->tableName() . "_" . $pk, $key);*/
     }
 
     /**
@@ -404,7 +408,9 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function dropCachesForEvent($className, $type, $param = null, $value = null)
     {
         list($setMembers, $setName) = self::getEvents($className::tableName(), $type);
-
+        if (!is_array($value)) {
+            $value = [$value];
+        }
         if ($setMembers) {
             $keys = [];
             foreach ($setMembers as $member) {
@@ -414,7 +420,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                         if (isset($event['param']) && isset($event['value'])) {
                             $eventParam = $event['param'];
                             $eventValue = $event['value'];
-                            if ($eventParam == $param && $eventValue == $value) {
+                            if ($eventParam == $param && in_array($eventValue, $value)) {
                                 $keys[] = [
                                     'setKey' => $setName,
                                     'key'    => $event['key'],
@@ -435,7 +441,8 @@ class ActiveQueryCacheHelper extends CacheHelper
                         if (isset($event['conditions']) && count($event['conditions']) > 0) {
                             $match = true;
                             foreach ($event['conditions'] as $eventParam => $eventValue) {
-                                if (($eventParam && !$param) || $eventParam != $param || $eventValue != $value) {
+                                if (($eventParam && !$param) || $eventParam != $param || !in_array($eventValue, $value)
+                                ) {
                                     $match = false;
                                 }
                             }
