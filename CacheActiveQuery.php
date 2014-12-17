@@ -432,8 +432,13 @@ class CacheActiveQuery extends ActiveQuery
         $this->noCache = true;
 
         return $this;
+
     }
 
+    /**
+     * @param bool $value
+     * @return static
+     */
     public function asArray($value = true)
     {
         if ($value) {
@@ -442,6 +447,9 @@ class CacheActiveQuery extends ActiveQuery
         return parent::asArray($value);
     }
 
+    /**
+     * @return int
+     */
     public function deleteAll()
     {
         /**
