@@ -383,12 +383,12 @@ class ActiveQueryCacheHelper extends CacheHelper
 
     /**
      * @param ActiveRecord $className
-     * @param string       $type
      * @param string|null  $param
      * @param string|null  $value
      */
-    public static function dropCachesCreateForEvent($className, $type, $param = null, $value = null)
+    public static function dropCachesForCreateEvent($className, $param = null, $value = null)
     {
+        $type = 'create';
         $keys = [];
         if ($param) {
             $keys = self::getEvents($className::tableName(), $type, $keys);
