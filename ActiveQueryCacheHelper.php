@@ -390,7 +390,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     {
         $type = 'create';
         $keys = [];
-        if ($param) {
+        if (!$param) {
             $keys = self::getEvents($className::tableName(), $type, $keys);
         } else {
             if (!is_array($value)) {
