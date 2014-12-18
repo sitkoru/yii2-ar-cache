@@ -118,6 +118,7 @@ class ActiveQueryCacheHelper extends CacheHelper
 
     /**
      * @param ActiveRecord $model
+     * @param array        $changedAttributes
      * @param bool         $withEvents
      */
     public static function dropCaches($model, $changedAttributes = [], $withEvents = true)
@@ -172,9 +173,9 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
-     * @param ActiveRecordTrait $singleModel
-     * @param                   $keys
-     *
+     * @param ActiveRecord $singleModel
+     * @param              $changedAttributes
+     * @param              $keys
      * @return array
      */
     public static function getEventsKeys($singleModel, $changedAttributes, $keys)
