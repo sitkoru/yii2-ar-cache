@@ -25,7 +25,7 @@ trait ActiveRecordTrait
         );
         parent::afterSave($insert, $changedAttributes);
         $this->insert = $insert;
-        ActiveQueryCacheHelper::dropCaches($this);
+        ActiveQueryCacheHelper::dropCaches($this, $changedAttributes);
     }
 
     public function afterDelete()

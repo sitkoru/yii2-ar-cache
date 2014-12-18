@@ -120,12 +120,12 @@ class ActiveQueryCacheHelper extends CacheHelper
      * @param ActiveRecord $model
      * @param bool         $withEvents
      */
-    public static function dropCaches($model, $withEvents = true)
+    public static function dropCaches($model, $changedAttributes = [], $withEvents = true)
     {
         self::log(
             "LD " . $model::className() . " " . json_encode($model->attributes)
         );
-        $depended = self::getDependedCaches($model, $withEvents);
+        $depended = self::getDependedCaches($model, $changedAttributes, $withEvents);
         if (count($depended)) {
             foreach ($depended as $cacheKey) {
                 self::log("D " . $cacheKey['key']);
@@ -140,10 +140,11 @@ class ActiveQueryCacheHelper extends CacheHelper
     /**
      * @param ActiveRecord $model
      *
-     * @param              $withEvents
+     * @param array        $changedAttributes
+     * @param bool         $withEvents
      * @return array
      */
-    public static function getDependedCaches(ActiveRecord $model, $withEvents)
+    public static function getDependedCaches(ActiveRecord $model, $changedAttributes, $withEvents)
     {
         $keys = [];
 
@@ -164,7 +165,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         }
 
         if ($withEvents) {
-            $keys = self::getEventsKeys($model, $keys);
+            $keys = self::getEventsKeys($model, $changedAttributes, $keys);
         }
 
         return $keys;
@@ -176,12 +177,12 @@ class ActiveQueryCacheHelper extends CacheHelper
      *
      * @return array
      */
-    public static function getEventsKeys($singleModel, $keys)
+    public static function getEventsKeys($singleModel, $changedAttributes, $keys)
     {
         //if ($singleModel->insert) {
         $keys = self::getKeysForCreateEvent($singleModel, $keys);
         //} else {
-        $keys = self::getKeysForUpdateEvent($singleModel, $keys);
+        $keys = self::getKeysForUpdateEvent($singleModel, $changedAttributes, $keys);
         // }
 
         return $keys;
@@ -196,77 +197,49 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
     {
 
-        list($setMembers, $setName) = self::getEvents($singleModel::tableName(), 'create');
-        if ($setMembers) {
-            foreach ($setMembers as $member) {
-                $event = json_decode($member, true);
-                if (isset($event['param']) && isset($event['value'])) {
-                    $param = $event['param'];
-                    $value = $event['value'];
-                    if (isset($singleModel->$param) && $singleModel->$param == $value) {
-                        $keys[] = [
-                            'setKey' => $setName,
-                            'key'    => $event['key'],
-                            'member' => $member
-
-                        ];
-                    }
-                } else {
-                    $keys[] = [
-                        'setKey' => $setName,
-                        'key'    => $event['key'],
-                        'member' => $member
-
-                    ];
-                }
-            }
+        $keys = self::getEvents($singleModel::tableName(), 'create', $keys);
+        foreach ($singleModel->attributes as $attr => $value) {
+            $type = 'create_' . $attr . '_' . $value;
+            $keys = self::getEvents($singleModel::tableName(), $type, $keys);
         }
 
         return $keys;
     }
 
-    private static function getEvents($tableName, $type)
+    /**
+     * @param       $tableName
+     * @param       $type
+     * @param array $keys
+     * @return array
+     */
+    private static function getEvents($tableName, $type, $keys)
     {
         $setName = $tableName . "_" . $type;
         $setMembers = CacheHelper::getSetMembers($setName);
-        return [$setMembers, $setName];
+        foreach ($setMembers as $member) {
+            $keys[] = [
+                'setKey' => $setName,
+                'key'    => $member['key'],
+            ];
+        }
+        return $keys;
     }
 
     /**
      * @param ActiveRecord $singleModel
+     * @param              $changedAttributes
      * @param array        $keys
-     *
      * @return array
      */
-    public static function getKeysForUpdateEvent($singleModel, $keys)
+    public static function getKeysForUpdateEvent($singleModel, $changedAttributes, $keys)
     {
-        list($setMembers, $setName) = self::getEvents($singleModel::tableName(), 'update');
-        if ($setMembers) {
-            foreach ($setMembers as $member) {
-                $event = json_decode($member, true);
-                if (count($event['conditions']) > 0) {
-                    $match = true;
-                    foreach ($event['conditions'] as $param => $value) {
-                        if (!isset($singleModel->$param) || $singleModel->$param != $value) {
-                            $match = false;
-                        }
-                    }
-                    if ($match) {
-                        $keys[] = [
-                            'setKey' => $setName,
-                            'key'    => $event['key'],
-                            'member' => $member
-
-                        ];
-                    }
-                } else {
-                    $keys[] = [
-                        'setKey' => $setName,
-                        'key'    => $event['key'],
-                        'member' => $member
-
-                    ];
-                }
+        $keys = self::getEvents($singleModel::tableName(), 'update', $keys);
+        foreach ($changedAttributes as $changedAttr => $oldValue) {
+            $setKeyType = 'update_' . $changedAttr;
+            $keys = self::getEvents($singleModel::tableName(), $setKeyType, $keys);
+            foreach ($singleModel->attributes as $attr => $value) {
+                $type = $setKeyType . '_' . $attr . '_' . $value;
+                $keys = self::getEvents($singleModel::tableName(), $type, $keys);
             }
         }
 
@@ -311,21 +284,30 @@ class ActiveQueryCacheHelper extends CacheHelper
                     CacheHelper::addToSet($modelName . "_" . $pk, $key);
                 }
                 foreach ($dropConditions as $event) {
-                    $setKey = "";
+
+                    $setKey = $modelName . '_' . $event['type'];
                     switch ($event['type']) {
                         case 'create':
-                            $setKey = $modelName . '_create';
+                            if ($event['param'] && $event['value']) {
+                                $setKey .= "_" . $event['param'] . "_" . $event['value'];
+                            }
+                            CacheHelper::addToSet($setKey, $key);
                             break;
                         case 'update':
-                            $setKey = $modelName . '_update';
+                            $setKey .= '_' . $event['param'];
+                            if ($event['conditions']) {
+                                foreach ($event['conditions'] as $param => $value) {
+                                    $paramSetKey = $setKey . "_" . $param . "_" . $value;
+                                    CacheHelper::addToSet($paramSetKey, $key);
+                                }
+                            } else {
+                                CacheHelper::addToSet($setKey, $key);
+                            }
                             break;
                         default:
                             continue;
                             break;
                     }
-                    $event['key'] = $key;
-                    self::log("IC " . $setKey . " " . json_encode($event));
-                    CacheHelper::addToSet($setKey, json_encode($event));
                 }
             }
         }
@@ -405,72 +387,24 @@ class ActiveQueryCacheHelper extends CacheHelper
      * @param string|null  $param
      * @param string|null  $value
      */
-    public static function dropCachesForEvent($className, $type, $param = null, $value = null)
+    public static function dropCachesCreateForEvent($className, $type, $param = null, $value = null)
     {
-        list($setMembers, $setName) = self::getEvents($className::tableName(), $type);
-        if (!is_array($value)) {
-            $value = [$value];
-        }
-        if ($setMembers) {
-            $keys = [];
-            foreach ($setMembers as $member) {
-                $event = json_decode($member, true);
-                switch ($type) {
-                    case 'create':
-                        if (isset($event['param']) && isset($event['value'])) {
-                            $eventParam = $event['param'];
-                            $eventValue = $event['value'];
-                            if ($eventParam == $param && in_array($eventValue, $value)) {
-                                $keys[] = [
-                                    'setKey' => $setName,
-                                    'key'    => $event['key'],
-                                    'member' => $member
-
-                                ];
-                            }
-                        } else {
-                            $keys[] = [
-                                'setKey' => $setName,
-                                'key'    => $event['key'],
-                                'member' => $member
-
-                            ];
-                        }
-                        break;
-                    case 'update':
-                        if (isset($event['conditions']) && count($event['conditions']) > 0) {
-                            $match = true;
-                            foreach ($event['conditions'] as $eventParam => $eventValue) {
-                                if (($eventParam && !$param) || $eventParam != $param || !in_array($eventValue, $value)
-                                ) {
-                                    $match = false;
-                                }
-                            }
-                            if ($match) {
-                                $keys[] = [
-                                    'setKey' => $setName,
-                                    'key'    => $event['key'],
-                                    'member' => $member
-
-                                ];
-                            }
-                        } else {
-                            $keys[] = [
-                                'setKey' => $setName,
-                                'key'    => $event['key'],
-                                'member' => $member
-
-                            ];
-                        }
-                        break;
-                }
+        $keys = [];
+        if ($param) {
+            $keys = self::getEvents($className::tableName(), $type, $keys);
+        } else {
+            if (!is_array($value)) {
+                $value = [$value];
             }
-            foreach ($keys as $key) {
-                self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $key['key']);
-                \Yii::$app->cache->delete($key['key']);
-                CacheHelper::removeFromSet($key['setKey'], $key['member']);
+            foreach ($value as $val) {
+                $keys = self::getEvents($className::tableName(), $type . "_" . $param . '_' . $val, $keys);
             }
         }
 
+        foreach ($keys as $key) {
+            self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $key['key']);
+            \Yii::$app->cache->delete($key['key']);
+            CacheHelper::removeFromSet($key['setKey'], $key['member']);
+        }
     }
 }
