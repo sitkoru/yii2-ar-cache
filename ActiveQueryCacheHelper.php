@@ -196,10 +196,11 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
     {
-
+        $schema = $singleModel::getTableSchema();
         $keys = self::getEvents($singleModel::tableName(), 'create', $keys);
-        foreach ($singleModel->attributes as $attr => $value) {
-            $type = 'create_' . $attr . '_' . $value;
+        foreach ($schema->columns as $column) {
+            $attr = $column->name;
+            $type = 'create_' . $attr . '_' . $singleModel->$attr;
             $keys = self::getEvents($singleModel::tableName(), $type, $keys);
         }
 
