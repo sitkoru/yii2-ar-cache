@@ -219,7 +219,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         foreach ($setMembers as $member) {
             $keys[] = [
                 'setKey' => $setName,
-                'key'    => $member['key'],
+                'key'    => $member,
             ];
         }
         return $keys;
