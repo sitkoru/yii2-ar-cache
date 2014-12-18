@@ -131,7 +131,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                 self::log("D " . $cacheKey['key']);
                 self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $cacheKey['key']);
                 \Yii::$app->cache->delete($cacheKey['key']);
-                CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['member']);
+                CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['key']);
             }
         }
 
