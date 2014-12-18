@@ -160,7 +160,6 @@ class ActiveQueryCacheHelper extends CacheHelper
                 $keys[] = [
                     'setKey' => $setKey,
                     'key'    => $member,
-                    'member' => $member
                 ];
             }
         }
@@ -405,7 +404,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         foreach ($keys as $key) {
             self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $key['key']);
             \Yii::$app->cache->delete($key['key']);
-            CacheHelper::removeFromSet($key['setKey'], $key['member']);
+            CacheHelper::removeFromSet($key['setKey'], $key['key']);
         }
     }
 }
