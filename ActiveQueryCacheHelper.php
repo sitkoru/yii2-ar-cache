@@ -196,10 +196,9 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
     {
-        $schema = $singleModel::getTableSchema();
         $keys = self::getEvents($singleModel::tableName(), 'create', $keys);
-        foreach ($schema->columns as $column) {
-            $attr = $column->name;
+        foreach ($singleModel->attributes as $attr=>$value) {
+
             if (is_array($singleModel->$attr)) {
                 continue; //skip array fields
             }
@@ -237,13 +236,11 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getKeysForUpdateEvent($singleModel, $changedAttributes, $keys)
     {
-        $schema = $singleModel::getTableSchema();
         $keys = self::getEvents($singleModel::tableName(), 'update', $keys);
         foreach ($changedAttributes as $changedAttr => $oldValue) {
             $setKeyType = 'update_' . $changedAttr;
             $keys = self::getEvents($singleModel::tableName(), $setKeyType, $keys);
-            foreach ($schema->columns as $column) {
-                $attr = $column->name;
+            foreach ($singleModel->attributes as $attr=>$value) {
                 if (is_array($singleModel->$attr)) {
                     continue; //skip array fields
                 }
