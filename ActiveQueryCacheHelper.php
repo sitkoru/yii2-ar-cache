@@ -200,6 +200,10 @@ class ActiveQueryCacheHelper extends CacheHelper
         $keys = self::getEvents($singleModel::tableName(), 'create', $keys);
         foreach ($schema->columns as $column) {
             $attr = $column->name;
+            if(is_array($singleModel->$attr))
+            {
+                continue; //skip array fields
+            }
             $type = 'create_' . $attr . '_' . $singleModel->$attr;
             $keys = self::getEvents($singleModel::tableName(), $type, $keys);
         }
