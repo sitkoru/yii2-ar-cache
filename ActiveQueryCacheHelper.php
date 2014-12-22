@@ -15,7 +15,7 @@ use yii\redis\Connection;
 class ActiveQueryCacheHelper extends CacheHelper
 {
     private static $logClass;
-    private static $connection = 'redis';
+    private static $connection = null;
 
     /**
      * @return Connection
