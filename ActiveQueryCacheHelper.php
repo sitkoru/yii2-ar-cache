@@ -4,6 +4,7 @@ namespace sitkoru\cache\ar;
 
 use yii\db\ActiveRecord;
 use yii\db\Query;
+use yii\redis\Connection;
 
 /**
  * Class ActiveQueryCacheHelper
@@ -14,6 +15,23 @@ use yii\db\Query;
 class ActiveQueryCacheHelper extends CacheHelper
 {
     private static $logClass;
+    private static $connection = 'redis';
+
+    /**
+     * @return Connection
+     */
+    public static function getRedis()
+    {
+        if (!self::$connection) {
+            self::$connection = \Yii::$app->cache->redis;
+        }
+        return self::$connection;
+    }
+
+    public static function setConnection(Connection $connection)
+    {
+        self::$connection = $connection;
+    }
 
     public static function log($message)
     {
@@ -132,7 +150,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                 self::log("D " . $cacheKey['key']);
                 self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $cacheKey['key']);
                 \Yii::$app->cache->delete($cacheKey['key']);
-                CacheHelper::removeFromSet($cacheKey['setKey'], $cacheKey['key']);
+                self::removeFromSet($cacheKey['setKey'], $cacheKey['key']);
             }
         }
 
@@ -154,7 +172,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         $pk = reset($pks);
 
         $setKey = $tableName . "_" . $pk;
-        $setKeys = CacheHelper::getSetMembers($setKey);
+        $setKeys = self::getSetMembers($setKey);
         if ($setKeys) {
             foreach ($setKeys as $member) {
                 $keys[] = [
@@ -197,7 +215,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
     {
         $keys = self::getEvents($singleModel::tableName(), 'create', $keys);
-        foreach ($singleModel->attributes as $attr=>$value) {
+        foreach ($singleModel->attributes as $attr => $value) {
 
             if (is_array($singleModel->$attr)) {
                 continue; //skip array fields
@@ -218,7 +236,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     private static function getEvents($tableName, $type, $keys)
     {
         $setName = $tableName . "_" . $type;
-        $setMembers = CacheHelper::getSetMembers($setName);
+        $setMembers = self::getSetMembers($setName);
         foreach ($setMembers as $member) {
             $keys[] = [
                 'setKey' => $setName,
@@ -240,7 +258,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         foreach ($changedAttributes as $changedAttr => $oldValue) {
             $setKeyType = 'update_' . $changedAttr;
             $keys = self::getEvents($singleModel::tableName(), $setKeyType, $keys);
-            foreach ($singleModel->attributes as $attr=>$value) {
+            foreach ($singleModel->attributes as $attr => $value) {
                 if (is_array($singleModel->$attr)) {
                     continue; //skip array fields
                 }
@@ -287,7 +305,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         if ($result) {
             foreach ($indexes as $modelName => $keys) {
                 foreach ($keys as $pk) {
-                    CacheHelper::addToSet($modelName . "_" . $pk, $key);
+                    self::addToSet($modelName . "_" . $pk, $key);
                 }
                 foreach ($dropConditions as $event) {
 
@@ -297,17 +315,17 @@ class ActiveQueryCacheHelper extends CacheHelper
                             if ($event['param'] && $event['value']) {
                                 $setKey .= "_" . $event['param'] . "_" . $event['value'];
                             }
-                            CacheHelper::addToSet($setKey, $key);
+                            self::addToSet($setKey, $key);
                             break;
                         case 'update':
                             $setKey .= '_' . $event['param'];
                             if ($event['conditions']) {
                                 foreach ($event['conditions'] as $param => $value) {
                                     $paramSetKey = $setKey . "_" . $param . "_" . $value;
-                                    CacheHelper::addToSet($paramSetKey, $key);
+                                    self::addToSet($paramSetKey, $key);
                                 }
                             } else {
-                                CacheHelper::addToSet($setKey, $key);
+                                self::addToSet($setKey, $key);
                             }
                             break;
                         default:
@@ -343,7 +361,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         $records = [];
         $end = $count * $page;
         $start = ($count * ($page - 1));
-        $jsonEntries = CacheHelper::getListMembers("cacheLog", $start, $end);
+        $jsonEntries = self::getListMembers("cacheLog", $start, $end);
         foreach ($jsonEntries as $entry) {
             $records[] = json_decode($entry, true);
         }
@@ -384,7 +402,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function getProfileRecordsCount()
     {
-        return CacheHelper::getListLength('cacheLog');
+        return self::getListLength('cacheLog');
     }
 
     /**
@@ -410,7 +428,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         foreach ($keys as $key) {
             self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $key['key']);
             \Yii::$app->cache->delete($key['key']);
-            CacheHelper::removeFromSet($key['setKey'], $key['key']);
+            self::removeFromSet($key['setKey'], $key['key']);
         }
     }
 }
