@@ -165,10 +165,8 @@ class CacheActiveQuery extends ActiveQuery
      */
     private function generateDropConditionsForEmptyResult()
     {
-
-        if (count($this->where) == 0) {
-            $this->dropCacheOnCreate();
-        } else {
+        $conditions = 0;
+        if (count($this->where) != 0) {
             $where = $this->getParsedWhere();
             foreach ($where as $condition) {
                 if (in_array(
@@ -188,7 +186,11 @@ class CacheActiveQuery extends ActiveQuery
                     continue;
                 }
                 $this->dropCacheOnCreate($condition['col'], $condition['value']);
+                $conditions++;
             }
+        }
+        if ($conditions == 0) {
+            $this->dropCacheOnCreate();
         }
     }
 
