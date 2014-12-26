@@ -316,6 +316,7 @@ class ActiveQueryCacheHelper extends CacheHelper
                                 $setKey .= "_" . $event['param'] . "_" . $event['value'];
                             }
                             self::addToSet($setKey, $key);
+                            self::log("ID " . $setKey . ' ' . $key);
                             break;
                         case 'update':
                             $setKey .= '_' . $event['param'];
@@ -323,9 +324,11 @@ class ActiveQueryCacheHelper extends CacheHelper
                                 foreach ($event['conditions'] as $param => $value) {
                                     $paramSetKey = $setKey . "_" . $param . "_" . $value;
                                     self::addToSet($paramSetKey, $key);
+                                    self::log("ID " . $paramSetKey . ' ' . $key);
                                 }
                             } else {
                                 self::addToSet($setKey, $key);
+                                self::log("ID " . $setKey . ' ' . $key);
                             }
                             break;
                         default:
