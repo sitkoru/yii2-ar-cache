@@ -129,8 +129,10 @@ class ActiveQueryCacheHelper extends CacheHelper
         $pks = $className::primaryKey(true);
         $pkName = reset($pks);
         $query = new Query();
-        $results = $query->select($pkName)->from($className::tableName())->where($condition,
-            $params)->createCommand()->queryAll();
+        $results = $query->select($pkName)->from($className::tableName())->where(
+            $condition,
+            $params
+        )->createCommand()->queryAll();
         return [$pkName, $results];
     }
 
@@ -161,6 +163,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      *
      * @param array        $changedAttributes
      * @param bool         $withEvents
+     *
      * @return array
      */
     public static function getDependedCaches(ActiveRecord $model, $changedAttributes, $withEvents)
@@ -193,6 +196,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      * @param ActiveRecord $singleModel
      * @param              $changedAttributes
      * @param              $keys
+     *
      * @return array
      */
     public static function getEventsKeys($singleModel, $changedAttributes, $keys)
@@ -231,6 +235,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      * @param       $tableName
      * @param       $type
      * @param array $keys
+     *
      * @return array
      */
     private static function getEvents($tableName, $type, $keys)
@@ -250,6 +255,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      * @param ActiveRecord $singleModel
      * @param              $changedAttributes
      * @param array        $keys
+     *
      * @return array
      */
     public static function getKeysForUpdateEvent($singleModel, $changedAttributes, $keys)
@@ -322,9 +328,14 @@ class ActiveQueryCacheHelper extends CacheHelper
                             $setKey .= '_' . $event['param'];
                             if ($event['conditions']) {
                                 foreach ($event['conditions'] as $param => $value) {
-                                    $paramSetKey = $setKey . "_" . $param . "_" . $value;
-                                    self::addToSet($paramSetKey, $key);
-                                    self::log("ID " . $paramSetKey . ' ' . $key);
+                                    if (!is_array($value)) {
+                                        $value = [$value];
+                                    }
+                                    foreach ($value as $val) {
+                                        $paramSetKey = $setKey . "_" . $param . "_" . $val;
+                                        self::addToSet($paramSetKey, $key);
+                                        self::log("ID " . $paramSetKey . ' ' . $key);
+                                    }
                                 }
                             } else {
                                 self::addToSet($setKey, $key);
@@ -357,6 +368,7 @@ class ActiveQueryCacheHelper extends CacheHelper
     /**
      * @param int $count
      * @param int $page
+     *
      * @return array
      */
     public static function getProfileRecords($count = 100, $page = 1)
