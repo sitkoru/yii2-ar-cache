@@ -43,7 +43,8 @@ class WhereParser
 
     private function parseCondition($condition, $params)
     {
-        if (array_key_exists(0, $condition)) { // operator format: operator, operand 1, operand 2, ...
+        if (is_array($condition) && array_key_exists(0, $condition)
+        ) { // operator format: operator, operand 1, operand 2, ...
             $operator = strtoupper($condition[0]);
             $method = 'parseSimpleCondition';
             if (array_key_exists($operator, $this->conditionParsers)) {
