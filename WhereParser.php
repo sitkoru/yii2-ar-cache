@@ -8,10 +8,10 @@ use yii\db\Expression;
 use yii\db\Query;
 
 /**
- * Class WhereParse
+ * Class WhereParser
  * @package sitkoru\cache\ar
  */
-class WhereParse
+class WhereParser
 {
 
     private $data = [];

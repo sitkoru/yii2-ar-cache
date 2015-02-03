@@ -199,7 +199,7 @@ class CacheActiveQuery extends ActiveQuery
 
     protected function getParsedWhere()
     {
-        $parser = new WhereParse(\Yii::$app->db);
+        $parser = new WhereParser(\Yii::$app->db);
         $data = $parser->parse($this->where, $this->params);
 
         return $data;
