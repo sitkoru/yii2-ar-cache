@@ -2,7 +2,6 @@
 
 namespace sitkoru\cache\ar;
 
-use PHPSQL\Parser;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
 
@@ -28,7 +27,7 @@ class CacheActiveQuery extends ActiveQuery
          * @var ActiveRecord[] $fromCache
          */
         ActiveQueryCacheHelper::log(
-            "LA " . $key
+            'LA ' . $key
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
@@ -37,12 +36,12 @@ class CacheActiveQuery extends ActiveQuery
             if ($fromCache == ['null']) {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ALL, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "SEA " . $key
+                    'SEA ' . $key
                 );
             } else {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ALL, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "SA " . $key
+                    'SA ' . $key
                 );
                 foreach ($fromCache as $i => $model) {
                     $key = $i;
@@ -57,10 +56,11 @@ class CacheActiveQuery extends ActiveQuery
                     $resultFromCache[$key] = $model;
                 }
             }
+
             return $resultFromCache;
         } else {
             ActiveQueryCacheHelper::log(
-                "MA " . $key
+                'MA ' . $key
             );
             ActiveQueryCacheHelper::profile(
                 $this->noCache ? ActiveQueryCacheHelper::PROFILE_RESULT_NO_CACHE : ActiveQueryCacheHelper::PROFILE_RESULT_MISS_ALL,
@@ -71,6 +71,7 @@ class CacheActiveQuery extends ActiveQuery
             if (!$this->noCache) {
                 $this->insertInCacheAll($key, $models);
             }
+
             return $models;
         }
     }
@@ -87,19 +88,20 @@ class CacheActiveQuery extends ActiveQuery
         $key = $mode;
         $key .= strtolower($this->modelClass);
         $key .= $sql;
-        if (count($this->where) == 0 && count($this->dropConditions) == 0) {
+        if (count($this->where) === 0 && count($this->dropConditions) === 0) {
             $this->dropCacheOnCreate();
         }
         //pagination
         if ($this->limit > 0) {
-            $key .= "limit" . $this->limit;
+            $key .= 'limit' . $this->limit;
         }
         if ($this->offset > 0) {
-            $key .= "offset" . $this->offset;
+            $key .= 'offset' . $this->offset;
         }
         ActiveQueryCacheHelper::log(
-            "G " . $sql . ':  ' . md5($key)
+            'G ' . $sql . ':  ' . md5($key)
         );
+
         return md5($key);
     }
 
@@ -166,156 +168,41 @@ class CacheActiveQuery extends ActiveQuery
     private function generateDropConditionsForEmptyResult()
     {
         $conditions = 0;
-        if (count($this->where) != 0) {
+        if (count($this->where) !== 0) {
             $where = $this->getParsedWhere();
             foreach ($where as $condition) {
+                $column = $condition[0];
+                $operator = $condition[1];
+                $value = $condition[2];
                 if (in_array(
-                    $condition['operator'],
+                    $operator,
                     [
                         'NOT IN',
                         '!=',
                         '>',
                         '<',
                         '>=',
-                        '<=',
-                    ]
+                        '<='
+                    ],
+                    true
                 )) {
                     continue;
                 }
-                if (!$condition['value']) {
-                    continue;
-                }
-                $this->dropCacheOnCreate($condition['col'], $condition['value']);
+                $this->dropCacheOnCreate($column, $value);
                 $conditions++;
             }
         }
-        if ($conditions == 0) {
+        if ($conditions === 0) {
             $this->dropCacheOnCreate();
         }
     }
 
-    protected function getParsedWhere($sql = null)
+    protected function getParsedWhere()
     {
-        $where = [];
-        if (!$sql) {
-            $sql = $this->createCommand()->rawSql;
-        }
-        $parser = new Parser();
-        $parsed = $parser->parse($sql);
-        if (isset($parsed['WHERE']) && count($parsed['WHERE']) > 0) {
-            //var_dump($parsed['WHERE']);
-            $this->parseWhere($parsed['WHERE'], $where);
-        }
-        return $where;
-    }
+        $parser = new WhereParse(\Yii::$app->db);
+        $data = $parser->parse($this->where, $this->params);
 
-    private function parseWhere($parsedWhere, &$where)
-    {
-        for ($i = 0; $i < count($parsedWhere);) {
-            $element = $parsedWhere[$i];
-            switch ($element['expr_type']) {
-                case 'colref':
-                    $operator = $parsedWhere[$i + 1]['base_expr'];
-                    $value = $this->getWhereValue($parsedWhere, $operator, $i);
-                    if ($value != 'skipparse') {
-                        $where[] = [
-                            'col'      => trim($element['base_expr'], '`'),
-                            'operator' => $operator,
-                            'value'    => $value,
-                        ];
-                        $i += 3;
-                    }
-                    break;
-                case 'operator':
-                    $i++;
-                    break;
-                case 'bracket_expression':
-                    $base = $element['base_expr']; //(`groupId`, `type`, `level`)
-                    if (stripos($base, ',') === false) {
-                        $this->parseWhere($element['sub_tree'], $where);
-                    }
-                    $i++;
-                    break;
-                default:
-                    $i++;
-                    break;
-            }
-        }
-        return $where;
-    }
-
-    /**
-     * @param $parsedWhere
-     * @param $operator
-     * @param $i
-     *
-     * @return array|string
-     */
-    private function getWhereValue($parsedWhere, &$operator, &$i)
-    {
-        $value = null;
-        $valueType = $parsedWhere[$i + 2]['expr_type'];
-        switch ($valueType) {
-            case 'const':
-                $value = trim($parsedWhere[$i + 2]['base_expr'], "'");
-                break;
-            case 'in-list':
-                $value = [];
-                foreach ($parsedWhere[$i + 2]['sub_tree'] as $subElement) {
-                    if ($subElement['expr_type'] == 'const') {
-                        $value[] = $subElement['base_expr'];
-                    } else {
-                        //TODO: smthng
-                    }
-                }
-                break;
-            case 'colref':
-                switch ($operator) {
-                    case '+':
-                        $value = trim($parsedWhere[$i + 3]['base_expr'], "'");
-                        $i++;
-                        break;
-                    case ',':
-                        var_dump($parsedWhere);
-                        $value = 'skipparse';
-                        break;
-                    default:
-                        $value = 'skipparse';
-                        $i++;
-                    //var_dump($parsedWhere);
-                    //die('Colref: ' . json_encode($parsedWhere[$i + 2]));
-                }
-                break;
-            case 'operator':
-                switch ($parsedWhere[$i + 2]['base_expr']) {
-                    case 'IN':
-                        if ($operator == 'NOT') {
-                            $tmp = 'IN';
-                            $i = $i + 1;
-                            $value = $this->getWhereValue($parsedWhere, $tmp, $i);
-                            $operator = "NOT IN";
-                        }
-                        break;
-                    case 'NOT':
-                        if ($operator == 'IS') {
-                            $tmp = 'NOT';
-                            $i = $i + 1;
-                            $value = $this->getWhereValue($parsedWhere, $tmp, $i);
-                            $operator = "IS NOT";
-                        }
-                        break;
-                    default:
-                        die('Default: ' . $parsedWhere[$i + 2]);
-                }
-                break;
-            default:
-                var_dump($i);
-                var_dump($parsedWhere);
-                var_dump($valueType);
-                die('Error: ' . $valueType);
-                break;
-        }
-        return $value;
+        return $data;
     }
 
     /**
@@ -330,20 +217,20 @@ class CacheActiveQuery extends ActiveQuery
          * @var ActiveRecord $fromCache
          */
         ActiveQueryCacheHelper::log(
-            "LO " . $key
+            'LO ' . $key
         );
         $fromCache = \Yii::$app->cache->get($key);
         if (!$this->noCache && $fromCache) {
-            if ($fromCache == 'null') {
+            if (is_string($fromCache) && $fromCache === 'null') {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ONE, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "SEO " . $key
+                    'SEO ' . $key
                 );
                 $fromCache = null;
             } else {
                 ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
                 ActiveQueryCacheHelper::log(
-                    "SO " . $key
+                    'SO ' . $key
                 );
                 if ($fromCache instanceof ActiveRecord) {
                     //restore key
@@ -351,6 +238,7 @@ class CacheActiveQuery extends ActiveQuery
                     $fromCache->afterFind();
                 }
             }
+
             return $fromCache;
         } else {
             ActiveQueryCacheHelper::profile(
@@ -359,7 +247,7 @@ class CacheActiveQuery extends ActiveQuery
                 $rawSql
             );
             ActiveQueryCacheHelper::log(
-                "MO " . $key
+                'MO ' . $key
             );
             $model = parent::one();
             if (!$this->noCache) {
@@ -446,6 +334,7 @@ class CacheActiveQuery extends ActiveQuery
         if ($value) {
             $this->noCache = true;
         }
+
         return parent::asArray($value);
     }
 
@@ -459,6 +348,7 @@ class CacheActiveQuery extends ActiveQuery
          */
         $params = [];
         $class = $this->modelClass;
+
         return $class::deleteAll($this->where, $params);
     }
 }
