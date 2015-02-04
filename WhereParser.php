@@ -105,7 +105,7 @@ class WhereParser
      * @return string the generated SQL expression
      * @throws InvalidParamException if wrong number of operands have been given.
      */
-    public function buildNotCondition($operator, $operands, &$params)
+    public function parseNotCondition($operator, $operands, &$params)
     {
         //TODO: implement
         return true;
@@ -120,7 +120,7 @@ class WhereParser
      * @return string the generated SQL expression
      * @throws InvalidParamException if wrong number of operands have been given.
      */
-    public function buildBetweenCondition($operator, $operands, &$params)
+    public function parseBetweenCondition($operator, $operands, &$params)
     {
         //TODO: implement
         return true;
