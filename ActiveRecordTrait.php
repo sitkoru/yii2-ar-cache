@@ -2,6 +2,8 @@
 
 namespace sitkoru\cache\ar;
 
+use yii\db\ActiveRecord;
+
 /**
  * Class ActiveRecordTrait
  *
@@ -19,10 +21,9 @@ trait ActiveRecordTrait
 
     public function afterSave($insert, $changedAttributes)
     {
-        \Yii::info(
-            ($insert ? "Insert" : "Update") . " " . get_called_class() . ": " . json_encode($this->attributes),
-            'cache'
-        );
+        /**
+         * @var $this ActiveRecord
+         */
         parent::afterSave($insert, $changedAttributes);
         $this->insert = $insert;
         ActiveQueryCacheHelper::dropCaches($this, $changedAttributes);
@@ -30,12 +31,18 @@ trait ActiveRecordTrait
 
     public function afterDelete()
     {
+        /**
+         * @var $this ActiveRecord
+         */
         parent::afterDelete();
         ActiveQueryCacheHelper::dropCaches($this);
     }
 
     public function refresh()
     {
+        /**
+         * @var $this ActiveRecord
+         */
         ActiveQueryCacheHelper::dropCaches($this);
 
         return parent::refresh();
@@ -75,6 +82,7 @@ trait ActiveRecordTrait
                 $query->dropCacheOnCreate($param, $this->$value);
             }
         }
+
         return $query;
     }
 

@@ -19,43 +19,22 @@ class CacheHelper
         return \Yii::$app->cache->redis;
     }
 
-    public static function addToSet($setKey, $member)
+    public static function loadScript($path)
     {
-        return static::getRedis()->executeCommand("SADD", [$setKey, $member]);
+        $script = file_get_contents($path);
+
+        return static::getRedis()->executeCommand('SCRIPT', ['load', $script]);
     }
 
-    public static function getSetMembers($setKey)
+    public static function evalSHA($sha, $args, $numKeys)
     {
-        return static::getRedis()->executeCommand("SMEMBERS", [$setKey]);
+        return static::getRedis()->executeCommand('EVALSHA', [$sha, $args, $numKeys]);
     }
 
-    public static function removeFromSet($setKey, $member)
+    public static function get($key)
     {
-        return static::getRedis()->executeCommand("SREM", [$setKey, $member]);
-    }
+        $res = static::getRedis()->executeCommand('get', [$key]);
 
-    public static function addToList($listKey, $member)
-    {
-        return static::getRedis()->executeCommand("LPUSH", [$listKey, $member]);
-    }
-
-    public static function getListMembers($listKey, $start = 0, $length = -1)
-    {
-        return static::getRedis()->executeCommand("LRANGE", [$listKey, $start, $length]);
-    }
-
-    public static function getListLength($listKey)
-    {
-        return static::getRedis()->executeCommand("LLEN", [$listKey]);
-    }
-
-    public static function deleteList($listKey)
-    {
-        return static::getRedis()->executeCommand("DEL", [$listKey]);
-    }
-
-    public static function increment($key)
-    {
-        return static::getRedis()->executeCommand("INCR", [$key]);
+        return $res !== false ? unserialize(zlib_decode($res)) : $res;
     }
 }
