@@ -13,6 +13,20 @@ use yii\db\Query;
  */
 class ActiveQueryCacheHelper extends CacheHelper
 {
+    private static $inited = false;
+    public static $shaCache;
+    public static $shaInvalidate;
+
+    public static function initialize()
+    {
+        if (!self::$inited) {
+            $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'cache.lua';
+            self::$shaCache = ActiveQueryCacheHelper::loadScript($path);
+            $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'invalidate.lua';
+            self::$shaInvalidate = ActiveQueryCacheHelper::loadScript($path);
+            self::$inited = true;
+        }
+    }
 
     private static $cacheTTL = 7200; //two hours by default
 
@@ -78,6 +92,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function dropCaches($model, array $changedAttributes = [])
     {
+        self::initialize();
         $attrs = $model->getAttributes();
         $changed = [];
         if ($changedAttributes) {
@@ -90,12 +105,11 @@ class ActiveQueryCacheHelper extends CacheHelper
         }
         $args = [
             $model->tableName(),
-            json_encode($attrs),
-            json_encode($changed)
+            json_encode($attrs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR),
+            json_encode($changed, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR)
         ];
-        CacheHelper::evalSHA(CacheActiveQuery::$shaInvalidate, $args, 0);
+        CacheHelper::evalSHA(self::$shaInvalidate, $args, 0);
     }
-
 
 
     public static function dropCachesForCreateEvent($model, $param = null, $value = null)

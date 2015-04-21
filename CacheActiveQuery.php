@@ -12,29 +12,18 @@ use yii\db\ActiveRecord;
  */
 class CacheActiveQuery extends ActiveQuery
 {
-    public static $shaCache;
-    public static $shaInvalidate;
-    private static $inited = false;
+
+
     private $dropConditions = [];
     private $disableCache = false;
 
-    private static function initialize()
-    {
-        if (!self::$inited) {
-            $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'cache.lua';
-            self::$shaCache = ActiveQueryCacheHelper::loadScript($path);
-            $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'invalidate.lua';
-            self::$shaInvalidate = ActiveQueryCacheHelper::loadScript($path);
-            self::$inited = true;
-        }
-    }
 
     /**
      * @inheritdoc
      */
     public function all($db = null)
     {
-        self::initialize();
+        ActiveQueryCacheHelper::initialize();
 
         if (!$this->disableCache) {
             $command = $this->createCommand($db);
@@ -80,7 +69,7 @@ class CacheActiveQuery extends ActiveQuery
      */
     public function one($db = null)
     {
-        self::initialize();
+        ActiveQueryCacheHelper::initialize();
         if (!$this->disableCache) {
             $command = $this->createCommand($db);
             $key = $this->generateCacheKey($command->rawSql, 'one');
@@ -174,7 +163,7 @@ class CacheActiveQuery extends ActiveQuery
             json_encode($conditions),
             ActiveQueryCacheHelper::getTTL()
         ];
-        CacheHelper::evalSHA(self::$shaCache, $args, 1);
+        CacheHelper::evalSHA(ActiveQueryCacheHelper::$shaCache, $args, 1);
     }
 
     /**
@@ -275,24 +264,30 @@ class CacheActiveQuery extends ActiveQuery
                     $tableConditions[] = [];
                 } else {
                     if (is_array($value)) {
-                        $arr = [];
-                        foreach ($value as $key => $val) {
-                            if ($key === 'conditions') {
-                                foreach ($val as $dep => $cond) {
-                                    if (is_array($cond)) {
-                                        foreach ($cond as $condValue) {
-                                            $arr[] = [$dep, $condValue];
+                        if (array_key_exists('conditions', $value)) {
+                            $arr = [];
+                            foreach ($value as $key => $val) {
+                                if ($key === 'conditions') {
+                                    foreach ($val as $dep => $cond) {
+                                        if (is_array($cond)) {
+                                            foreach ($cond as $condValue) {
+                                                $arr[] = [$dep, $condValue];
+                                            }
+                                        } else {
+                                            $arr[] = [$dep, $cond];
                                         }
-                                    } else {
-                                        $arr[] = [$dep, $cond];
-                                    }
 
+                                    }
+                                } else {
+                                    $arr[] = [$column, $val];
                                 }
-                            } else {
-                                $arr[] = [$column, $val];
+                            }
+                            $tableConditions[] = $arr;
+                        } else {
+                            foreach ($value as $key => $val) {
+                                $tableConditions[] = [[$column, $val]];
                             }
                         }
-                        $tableConditions[] = $arr;
                     } else {
                         $tableConditions[] = [[$column, $value]];
                     }
