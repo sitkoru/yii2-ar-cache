@@ -212,7 +212,7 @@ class CacheActiveQuery extends ActiveQuery
             if (!array_key_exists($param, $this->dropConditions[$tableName])) {
                 $this->dropConditions[$tableName][$param] = [];
             }
-            $this->dropConditions[$tableName][$param][] = $value;
+            $this->dropConditions[$tableName][$param][] = [$param, $value];
         } else {
             $this->dropConditions[$tableName]['create'] = true;
         }
@@ -240,14 +240,15 @@ class CacheActiveQuery extends ActiveQuery
         if (!array_key_exists($param, $this->dropConditions[$tableName])) {
             $this->dropConditions[$tableName][$param] = [];
         }
-
-        $this->dropConditions[$tableName][$param][] = '*';
+        $cond = [];
+        $cond[] = '*';
         if ($condition) {
-            $this->dropConditions[$tableName][$param]['conditions'] = [];
+            $cond['conditions'] = [];
             foreach ($condition as $dep => $value) {
-                $this->dropConditions[$tableName][$param]['conditions'][$dep] = $value;
+                $cond['conditions'][$dep] = $value;
             }
         }
+        $this->dropConditions[$tableName][$param][] = $cond;
 
         return $this;
     }
@@ -255,41 +256,48 @@ class CacheActiveQuery extends ActiveQuery
     private function getDropConditions()
     {
         $this->fillDropConditions();
+
         $conditions = [];
         foreach ($this->dropConditions as $tableName => $entries) {
             $table = [$tableName];
             $tableConditions = [];
-            foreach ($entries as $column => $value) {
-                if ($column === 'create' && $value === true) {
+            foreach ($entries as $column => $values) {
+                if ($column === 'create' && $values === true) {
                     $tableConditions[] = [];
                 } else {
-                    if (is_array($value)) {
-                        if (array_key_exists('conditions', $value)) {
-                            $arr = [];
-                            foreach ($value as $key => $val) {
-                                if ($key === 'conditions') {
-                                    foreach ($val as $dep => $cond) {
-                                        if (is_array($cond)) {
-                                            foreach ($cond as $condValue) {
-                                                $arr[] = [$dep, $condValue];
+                    foreach ($values as $value) {
+                        if (is_array($value)) {
+                            if (array_key_exists('conditions', $value)) {
+                                $arr = [];
+                                foreach ($value as $key => $val) {
+                                    if ($key === 'conditions') {
+                                        foreach ($val as $dep => $cond) {
+                                            if (is_array($cond)) {
+                                                foreach ($cond as $condValue) {
+                                                    $arr[] = [$dep, $condValue];
+                                                }
+                                            } else {
+                                                $arr[] = [$dep, $cond];
                                             }
-                                        } else {
-                                            $arr[] = [$dep, $cond];
-                                        }
 
+                                        }
+                                    } else {
+                                        $arr[] = [$column, $val];
+                                    }
+                                }
+                                $tableConditions[] = $arr;
+                            } else {
+                                if (is_array($value[1])) {
+                                    foreach ($value[1] as $val) {
+                                        $tableConditions[] = [[$value[0], $val]];
                                     }
                                 } else {
-                                    $arr[] = [$column, $val];
+                                    $tableConditions[] = [$value];
                                 }
                             }
-                            $tableConditions[] = $arr;
                         } else {
-                            foreach ($value as $key => $val) {
-                                $tableConditions[] = [[$column, $val]];
-                            }
+                            $tableConditions[] = [[$column, $value]];
                         }
-                    } else {
-                        $tableConditions[] = [[$column, $value]];
                     }
                 }
             }
@@ -328,7 +336,7 @@ class CacheActiveQuery extends ActiveQuery
                     )) {
                         continue;
                     }
-                    $this->dropConditions[$tableName][$column] = $value;
+                    $this->dropConditions[$tableName][$column][] = [$column, $value];
 
                 }
             } elseif (!$this->dropConditions[$tableName]) {
