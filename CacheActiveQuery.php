@@ -287,7 +287,7 @@ class CacheActiveQuery extends ActiveQuery
                                 }
                                 $tableConditions[] = $arr;
                             } else {
-                                if (is_array($value[1])) {
+                                if (array_key_exists(1, $value) && is_array($value[1])) {
                                     foreach ($value[1] as $val) {
                                         $tableConditions[] = [[$value[0], $val]];
                                     }
