@@ -380,4 +380,13 @@ class CacheActiveQuery extends ActiveQuery
 
         return $class::deleteAll($this->where, $params);
     }
+
+    /**
+     * @return ActiveRecord
+     */
+    public function any()
+    {
+        return $this->limit(1)->one();
+    }
+
 }
