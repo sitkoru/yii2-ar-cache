@@ -382,11 +382,11 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
-     * @return ActiveRecord
+     * @return ActiveRecord|null
      */
     public function any()
     {
-        return $this->limit(1)->one();
+        return $this->limit(1)->noCache()->one();
     }
 
 }
