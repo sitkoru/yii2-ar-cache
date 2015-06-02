@@ -386,7 +386,11 @@ class CacheActiveQuery extends ActiveQuery
      */
     public function any()
     {
-        return $this->limit(1)->noCache()->one();
+        $query = clone  $this;
+        $result = $query->limit(1)->noCache()->one();
+        unset($query);
+
+        return $result;
     }
 
 }
