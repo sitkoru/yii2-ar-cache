@@ -240,9 +240,9 @@ class CacheActiveQuery extends ActiveQuery
         if (!array_key_exists($param, $this->dropConditions[$tableName])) {
             $this->dropConditions[$tableName][$param] = [];
         }
-        $cond = [];
-        $cond[] = '*';
+        $cond = '*';
         if ($condition) {
+            $cond = [];
             $cond['conditions'] = [];
             foreach ($condition as $dep => $value) {
                 $cond['conditions'][$dep] = $value;
