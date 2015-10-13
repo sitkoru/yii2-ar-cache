@@ -28,8 +28,7 @@ class CacheActiveQuery extends ActiveQuery
 
         if (!$this->disableCache) {
             $command = $this->createCommand($db);
-            $rawSql = $command->rawSql;
-            $key = $this->generateCacheKey($rawSql, 'all');
+            $key = $this->generateCacheKey($command->rawSql, 'all');
 
             /**
              * @var ActiveRecord[] $fromCache
@@ -39,15 +38,15 @@ class CacheActiveQuery extends ActiveQuery
 
                 $resultFromCache = [];
                 foreach ($fromCache as $i => $model) {
-                    $key = $i;
+                    $index = $i;
                     if ($model instanceof ActiveRecord) {
-                        //restore key
                         $model->afterFind();
                     }
+                    //index by
                     if (is_string($this->indexBy)) {
-                        $key = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
+                        $index = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
                     }
-                    $resultFromCache[$key] = $model;
+                    $resultFromCache[$index] = $model;
                 }
 
                 return $resultFromCache;
@@ -83,7 +82,6 @@ class CacheActiveQuery extends ActiveQuery
                     $fromCache = null;
                 } else {
                     if ($fromCache instanceof ActiveRecord) {
-                        //restore key
                         $fromCache->afterFind();
                     }
                 }
@@ -176,9 +174,7 @@ class CacheActiveQuery extends ActiveQuery
      */
     private function generateCacheKey($sql, $mode)
     {
-        $key = $mode;
-        $key .= strtolower($this->modelClass);
-        $key .= $sql;
+        $key = $mode . strtolower($this->modelClass) . $sql;;
         if (count($this->where) === 0 && count($this->dropConditions) === 0) {
             $this->dropCacheOnCreate();
         }
@@ -228,26 +224,19 @@ class CacheActiveQuery extends ActiveQuery
      *
      * @return self
      */
-    public function dropCacheOnUpdate($param, $condition = null)
+    public function dropCacheOnUpdate($param, $conditions = null)
     {
         /**
          * @var ActiveRecord $className
          */
         $className = $this->modelClass;
         $tableName = $className::tableName();
-        if (!array_key_exists($tableName, $this->dropConditions)) {
-            $this->dropConditions[$tableName] = [];
-        }
-        if (!array_key_exists($param, $this->dropConditions[$tableName])) {
+        if (!isset($this->dropConditions[$tableName][$param])) {
             $this->dropConditions[$tableName][$param] = [];
         }
         $cond = '*';
-        if ($condition) {
-            $cond = [];
-            $cond['conditions'] = [];
-            foreach ($condition as $dep => $value) {
-                $cond['conditions'][$dep] = $value;
-            }
+        if ($conditions) {
+            $cond = ['conditions' = $conditions];
         }
         $this->dropConditions[$tableName][$param][] = $cond;
 
@@ -324,9 +313,7 @@ class CacheActiveQuery extends ActiveQuery
             if (count($this->where) !== 0) {
                 $where = $this->getParsedWhere();
                 foreach ($where as $condition) {
-                    $column = $condition[0];
-                    $operator = $condition[1];
-                    $value = $condition[2];
+                    list($column, $operator, $value) = $condition;
                     if (in_array(
                         $operator,
                         [
