@@ -3,6 +3,7 @@
 namespace sitkoru\cache\ar;
 
 use yii\db\ActiveRecord;
+use yii\db\Exception;
 use yii\db\Query;
 
 /**
@@ -14,16 +15,27 @@ use yii\db\Query;
 class ActiveQueryCacheHelper extends CacheHelper
 {
     private static $inited = false;
-    public static $shaCache;
-    public static $shaInvalidate;
+    public static $shaCache = '86bda7598e8952af3ca5aa2f23eedc54a5a11414';
+    public static $shaInvalidate = '8cc3d1f5ba2ec9b0ceee2925dcdf516d67e18d70';
 
+    private static $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR;
+
+    /**
+     *
+     */
     public static function initialize()
     {
         if (!self::$inited) {
-            $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'cache.lua';
-            self::$shaCache = ActiveQueryCacheHelper::loadScript($path);
-            $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'invalidate.lua';
-            self::$shaInvalidate = ActiveQueryCacheHelper::loadScript($path);
+
+            if (!ActiveQueryCacheHelper::scriptExists(self::$shaCache)) {
+                $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'cache.lua';
+                ActiveQueryCacheHelper::loadScript($path);
+            }
+            if (!ActiveQueryCacheHelper::scriptExists(self::$shaInvalidate)) {
+                $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'invalidate.lua';
+                ActiveQueryCacheHelper::loadScript($path);
+            }
+
             self::$inited = true;
         }
     }
@@ -77,11 +89,15 @@ class ActiveQueryCacheHelper extends CacheHelper
          */
         $pks = $className::primaryKey();
         $pkName = reset($pks);
-        $query = new Query();
-        $results = $query->select($pkName)->from($className::tableName())->where(
+        $query = (new Query())->select($pkName)->from($className::tableName())->where(
             $condition,
             $params
-        )->createCommand()->queryAll();
+        );
+        try {
+            $results = $query->createCommand()->queryAll();
+        } catch (Exception $ex) {
+            $results = [];
+        }
 
         return [$pkName, $results];
     }
@@ -105,8 +121,9 @@ class ActiveQueryCacheHelper extends CacheHelper
         }
         $args = [
             $model->tableName(),
-            json_encode($attrs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR),
-            json_encode($changed, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR)
+
+            json_encode($attrs, self::$jsonOptions),
+            json_encode($changed, self::$jsonOptions)
         ];
         CacheHelper::evalSHA(self::$shaInvalidate, $args, 0);
     }
