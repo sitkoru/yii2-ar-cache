@@ -4,6 +4,7 @@ namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
+use yii\helpers\ArrayHelper;
 
 /**
  * Class CacheActiveQuery
@@ -127,11 +128,11 @@ class CacheActiveQuery extends ActiveQuery
     {
         $toCache = [];
         if ($models) {
-            foreach ($models as $k => $model) {
+            array_map(function ($model) use $toCache {
                 $copy = clone $model;
                 $copy->fromCache = true;
                 $toCache[$k] = $copy;
-            }
+            }, $models)
         }
         $this->insertInCache($key, $toCache);
 
@@ -253,6 +254,9 @@ class CacheActiveQuery extends ActiveQuery
         return $this;
     }
 
+    /**
+     * @return array
+     */
     private function getDropConditions()
     {
         $this->fillDropConditions();
@@ -309,6 +313,7 @@ class CacheActiveQuery extends ActiveQuery
     }
 
     /**
+     * @return array
      */
     private function fillDropConditions()
     {
@@ -347,6 +352,9 @@ class CacheActiveQuery extends ActiveQuery
         return $this->dropConditions;
     }
 
+    /**
+     * @return array
+     */
     protected function getParsedWhere()
     {
         $parser = new WhereParser(\Yii::$app->db);
