@@ -4,6 +4,7 @@ namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
+use yii\helpers\ArrayHelper;
 
 /**
  * Class CacheActiveQuery
@@ -12,121 +13,107 @@ use yii\db\ActiveRecord;
  */
 class CacheActiveQuery extends ActiveQuery
 {
+
+
     private $dropConditions = [];
-    private $noCache = false;
+    private $disableCache = false;
+
 
     /**
      * @inheritdoc
      */
     public function all($db = null)
     {
-        $command = $this->createCommand($db);
-        $rawSql = $command->rawSql;
-        $key = $this->generateCacheKey($rawSql, 'all');
-        /**
-         * @var ActiveRecord[] $fromCache
-         */
-        ActiveQueryCacheHelper::log(
-            'LA ' . $key
-        );
-        $fromCache = \Yii::$app->cache->get($key);
-        if (!$this->noCache && $fromCache) {
+        ActiveQueryCacheHelper::initialize();
 
-            $resultFromCache = [];
-            if ($fromCache == ['null']) {
-                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ALL, $key, $rawSql);
-                ActiveQueryCacheHelper::log(
-                    'SEA ' . $key
-                );
-            } else {
-                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ALL, $key, $rawSql);
-                ActiveQueryCacheHelper::log(
-                    'SA ' . $key
-                );
+        if (!$this->disableCache) {
+            $command = $this->createCommand($db);
+            $key = $this->generateCacheKey($command->rawSql, 'all');
+
+            /**
+             * @var ActiveRecord[] $fromCache
+             */
+            $fromCache = CacheHelper::get($key);
+            if ($fromCache) {
+
+                $resultFromCache = [];
                 foreach ($fromCache as $i => $model) {
-                    $key = $i;
+                    $index = $i;
                     if ($model instanceof ActiveRecord) {
-                        //restore key
-                        ActiveQueryCacheHelper::insertKeyForPK($model, $key);
                         $model->afterFind();
                     }
+                    //index by
                     if (is_string($this->indexBy)) {
-                        $key = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
+                        $index = $model instanceof ActiveRecord ? $model->{$this->indexBy} : $model[$this->indexBy];
                     }
-                    $resultFromCache[$key] = $model;
+                    $resultFromCache[$index] = $model;
+                }
+
+                return $resultFromCache;
+            } else {
+                $models = parent::all($db);
+                if ($models) {
+                    $this->insertInCacheAll($key, $models);
+                }
+
+                return $models;
+            }
+        } else {
+            return parent::all($db);
+        }
+
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function one($db = null)
+    {
+        ActiveQueryCacheHelper::initialize();
+        if (!$this->disableCache) {
+            $command = $this->createCommand($db);
+            $key = $this->generateCacheKey($command->rawSql, 'one');
+            /**
+             * @var ActiveRecord $fromCache
+             */
+            $fromCache = CacheHelper::get($key);
+            if ($fromCache) {
+                if (is_string($fromCache) && $fromCache === 'null') {
+                    $fromCache = null;
+                } else {
+                    if ($fromCache instanceof ActiveRecord) {
+                        $fromCache->afterFind();
+                    }
+                }
+
+                return $fromCache;
+            } else {
+                $model = parent::one();
+                if ($model) {
+                    $this->insertInCacheOne($key, $model);
+                }
+                if ($model && $model instanceof ActiveRecord) {
+                    return $model;
+                } else {
+                    return null;
                 }
             }
-
-            return $resultFromCache;
         } else {
-            ActiveQueryCacheHelper::log(
-                'MA ' . $key
-            );
-            ActiveQueryCacheHelper::profile(
-                $this->noCache ? ActiveQueryCacheHelper::PROFILE_RESULT_NO_CACHE : ActiveQueryCacheHelper::PROFILE_RESULT_MISS_ALL,
-                $key,
-                $rawSql
-            );
-            $models = parent::all($db);
-            if (!$this->noCache) {
-                $this->insertInCacheAll($key, $models);
-            }
-
-            return $models;
+            return parent::one();
         }
     }
 
     /**
-     * @param string  $sql
-     *
-     * @param         $mode
-     *
-     * @return string
+     * @param bool $value
+     * @return static
      */
-    private function generateCacheKey($sql, $mode)
+    public function asArray($value = true)
     {
-        $key = $mode;
-        $key .= strtolower($this->modelClass);
-        $key .= $sql;
-        if (count($this->where) === 0 && count($this->dropConditions) === 0) {
-            $this->dropCacheOnCreate();
-        }
-        //pagination
-        if ($this->limit > 0) {
-            $key .= 'limit' . $this->limit;
-        }
-        if ($this->offset > 0) {
-            $key .= 'offset' . $this->offset;
-        }
-        ActiveQueryCacheHelper::log(
-            'G ' . $sql . ':  ' . md5($key)
-        );
-
-        return md5($key);
-    }
-
-    /**
-     * @param string|null  $param
-     * @param string|array $value
-     *
-     * @return self
-     */
-    public function dropCacheOnCreate($param = null, $value = null)
-    {
-        if (!is_array($value)) {
-            $value = [$value];
+        if ($value) {
+            $this->disableCache = true;
         }
 
-        foreach ($value as $val) {
-            $event = [
-                'type'  => 'create',
-                'param' => $param,
-                'value' => $val
-            ];
-            $this->dropConditions[] = $event;
-        }
-
-        return $this;
+        return parent::asArray($value);
     }
 
     /**
@@ -137,128 +124,17 @@ class CacheActiveQuery extends ActiveQuery
      */
     private function insertInCacheAll($key, $models)
     {
-        /** @var $class ActiveRecord */
-        $class = $this->modelClass;
-        $indexes = [
-            $class::tableName() => [
-            ]
-        ];
+        $toCache = [];
         if ($models) {
-            $toCache = $models;
-            foreach ($toCache as $index => $model) {
-                $mToCache = clone $model;
-                $mToCache->fromCache = true;
-                $toCache[$index] = $mToCache;
-                $pks = $mToCache->getPrimaryKey(true);
-                $indexes[$class::tableName()][] = reset($pks);
-            }
-        } else {
-            $toCache = ['null'];
-            $indexes[$class::tableName()][] = null;
-            $this->generateDropConditionsForEmptyResult();
+            array_map(function ($model) use $toCache {
+                $copy = clone $model;
+                $copy->fromCache = true;
+                $toCache[$k] = $copy;
+            }, $models)
         }
-
-        ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
+        $this->insertInCache($key, $toCache);
 
         return true;
-    }
-
-    /**
-     */
-    private function generateDropConditionsForEmptyResult()
-    {
-        $conditions = 0;
-        if (count($this->where) !== 0) {
-            $where = $this->getParsedWhere();
-            foreach ($where as $condition) {
-                $column = $condition[0];
-                $operator = $condition[1];
-                $value = $condition[2];
-                if (in_array(
-                    $operator,
-                    [
-                        'NOT IN',
-                        '!=',
-                        '>',
-                        '<',
-                        '>=',
-                        '<='
-                    ],
-                    true
-                )) {
-                    continue;
-                }
-                $this->dropCacheOnCreate($column, $value);
-                $conditions++;
-            }
-        }
-        if ($conditions === 0) {
-            $this->dropCacheOnCreate();
-        }
-    }
-
-    protected function getParsedWhere()
-    {
-        $parser = new WhereParser(\Yii::$app->db);
-        $data = $parser->parse($this->where, $this->params);
-
-        return $data;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function one($db = null)
-    {
-        $command = $this->createCommand($db);
-        $rawSql = $command->rawSql;
-        $key = $this->generateCacheKey($command->rawSql, 'one');
-        /**
-         * @var ActiveRecord $fromCache
-         */
-        ActiveQueryCacheHelper::log(
-            'LO ' . $key
-        );
-        $fromCache = \Yii::$app->cache->get($key);
-        if (!$this->noCache && $fromCache) {
-            if (is_string($fromCache) && $fromCache === 'null') {
-                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_EMPTY_ONE, $key, $rawSql);
-                ActiveQueryCacheHelper::log(
-                    'SEO ' . $key
-                );
-                $fromCache = null;
-            } else {
-                ActiveQueryCacheHelper::profile(ActiveQueryCacheHelper::PROFILE_RESULT_HIT_ONE, $key, $rawSql);
-                ActiveQueryCacheHelper::log(
-                    'SO ' . $key
-                );
-                if ($fromCache instanceof ActiveRecord) {
-                    //restore key
-                    ActiveQueryCacheHelper::insertKeyForPK($fromCache, $key);
-                    $fromCache->afterFind();
-                }
-            }
-
-            return $fromCache;
-        } else {
-            ActiveQueryCacheHelper::profile(
-                $this->noCache ? ActiveQueryCacheHelper::PROFILE_RESULT_NO_CACHE : ActiveQueryCacheHelper::PROFILE_RESULT_MISS_ONE,
-                $key,
-                $rawSql
-            );
-            ActiveQueryCacheHelper::log(
-                'MO ' . $key
-            );
-            $model = parent::one();
-            if (!$this->noCache) {
-                $this->insertInCacheOne($key, $model);
-            }
-            if ($model && $model instanceof ActiveRecord) {
-                return $model;
-            } else {
-                return null;
-            }
-        }
     }
 
     /**
@@ -270,25 +146,76 @@ class CacheActiveQuery extends ActiveQuery
     private function insertInCacheOne($key, $model)
     {
         /** @var $class ActiveRecord */
-        $class = $this->modelClass;
-        if ($model) {
-            $keys = $model->getPrimaryKey(true);
-            $pk = reset($keys);
-            $indexes = [
-                $class::tableName() => [
-                    $pk
-                ]
-            ];
-            $toCache = clone $model;
-            $toCache->fromCache = true;
-        } else {
-            $toCache = 'null';
-            $indexes[$class::tableName()] = ['null'];
-            $this->generateDropConditionsForEmptyResult();
-        }
-        ActiveQueryCacheHelper::insertInCache($key, $toCache, $indexes, $this->dropConditions);
+        $copy = clone $model;
+        $copy->fromCache = true;
+        $this->insertInCache($key, $copy);
 
         return true;
+    }
+
+    private function insertInCache($key, $toCache)
+    {
+        $conditions = $this->getDropConditions();
+        $args = [
+            $key,
+            zlib_encode(serialize($toCache), ZLIB_ENCODING_DEFLATE),
+            json_encode($conditions),
+            ActiveQueryCacheHelper::getTTL()
+        ];
+        CacheHelper::evalSHA(ActiveQueryCacheHelper::$shaCache, $args, 1);
+    }
+
+    /**
+     * @param string  $sql
+     *
+     * @param         $mode
+     *
+     * @return string
+     */
+    private function generateCacheKey($sql, $mode)
+    {
+        $key = $mode . strtolower($this->modelClass) . $sql;;
+        if (count($this->where) === 0 && count($this->dropConditions) === 0) {
+            $this->dropCacheOnCreate();
+        }
+        //pagination
+        if ($this->limit > 0) {
+            $key .= 'limit' . $this->limit;
+        }
+        if ($this->offset > 0) {
+            $key .= 'offset' . $this->offset;
+        }
+
+        return 'q:' . md5($key);
+    }
+
+    /**
+     * @param string|null  $param
+     * @param string|array $value
+     *
+     * @return self
+     */
+    public function dropCacheOnCreate($param = null, $value = null)
+    {
+        /**
+         * @var ActiveRecord $className
+         */
+        $className = $this->modelClass;
+        $tableName = $className::tableName();
+        if (!array_key_exists($tableName, $this->dropConditions)) {
+            $this->dropConditions[$tableName] = [];
+        }
+        if ($param) {
+            if (!array_key_exists($param, $this->dropConditions[$tableName])) {
+                $this->dropConditions[$tableName][$param] = [];
+            }
+            $this->dropConditions[$tableName][$param][] = [$param, $value];
+        } else {
+            $this->dropConditions[$tableName]['create'] = true;
+        }
+
+
+        return $this;
     }
 
     /**
@@ -297,45 +224,142 @@ class CacheActiveQuery extends ActiveQuery
      *
      * @return self
      */
-    public function dropCacheOnUpdate($param, $condition = null)
+    public function dropCacheOnUpdate($param, $conditions = null)
     {
-        $event = [
-            'type'       => 'update',
-            'param'      => $param,
-            'conditions' => []
-        ];
-        if ($condition) {
-            foreach ($condition as $param => $value) {
-                $event['conditions'] = [$param => $value];
-            }
+        /**
+         * @var ActiveRecord $className
+         */
+        $className = $this->modelClass;
+        $tableName = $className::tableName();
+        if (!isset($this->dropConditions[$tableName][$param])) {
+            $this->dropConditions[$tableName][$param] = [];
         }
-        $this->dropConditions[] = $event;
+        $cond = '*';
+        if ($conditions) {
+            $cond = ['conditions' = $conditions];
+        }
+        $this->dropConditions[$tableName][$param][] = $cond;
 
         return $this;
     }
+
+    /**
+     * @return array
+     */
+    private function getDropConditions()
+    {
+        $this->fillDropConditions();
+
+        $conditions = [];
+        foreach ($this->dropConditions as $tableName => $entries) {
+            $table = [$tableName];
+            $tableConditions = [];
+            foreach ($entries as $column => $values) {
+                if ($column === 'create' && $values === true) {
+                    $tableConditions[] = [];
+                } else {
+                    foreach ($values as $value) {
+                        if (is_array($value)) {
+                            if (array_key_exists('conditions', $value)) {
+                                $arr = [];
+                                foreach ($value as $key => $val) {
+                                    if ($key === 'conditions') {
+                                        foreach ($val as $dep => $cond) {
+                                            if (is_array($cond)) {
+                                                foreach ($cond as $condValue) {
+                                                    $arr[] = [$dep, $condValue];
+                                                }
+                                            } else {
+                                                $arr[] = [$dep, $cond];
+                                            }
+
+                                        }
+                                    } else {
+                                        $arr[] = [$column, $val];
+                                    }
+                                }
+                                $tableConditions[] = $arr;
+                            } else {
+                                if (array_key_exists(1, $value) && is_array($value[1])) {
+                                    foreach ($value[1] as $val) {
+                                        $tableConditions[] = [[$value[0], $val]];
+                                    }
+                                } else {
+                                    $tableConditions[] = [$value];
+                                }
+                            }
+                        } else {
+                            $tableConditions[] = [[$column, $value]];
+                        }
+                    }
+                }
+            }
+            $table[] = $tableConditions;
+            $conditions[] = $table;
+        }
+
+        return $conditions;
+    }
+
+    /**
+     * @return array
+     */
+    private function fillDropConditions()
+    {
+        foreach ($this->from as $tableName) {
+            if (!array_key_exists($tableName, $this->dropConditions)) {
+                $this->dropConditions[$tableName] = [];
+            }
+            if (count($this->where) !== 0) {
+                $where = $this->getParsedWhere();
+                foreach ($where as $condition) {
+                    list($column, $operator, $value) = $condition;
+                    if (in_array(
+                        $operator,
+                        [
+                            'NOT IN',
+                            '!=',
+                            '>',
+                            '<',
+                            '>=',
+                            '<='
+                        ],
+                        true
+                    )) {
+                        continue;
+                    }
+                    $this->dropConditions[$tableName][$column][] = [$column, $value];
+
+                }
+            } elseif (!$this->dropConditions[$tableName]) {
+                $this->dropConditions[$tableName]['create'] = true;
+            }
+        }
+
+        return $this->dropConditions;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getParsedWhere()
+    {
+        $parser = new WhereParser(\Yii::$app->db);
+        $data = $parser->parse($this->where, $this->params);
+
+        return $data;
+    }
+
 
     /**
      * @return static
      */
     public function noCache()
     {
-        $this->noCache = true;
+        $this->disableCache = true;
 
         return $this;
 
-    }
-
-    /**
-     * @param bool $value
-     * @return static
-     */
-    public function asArray($value = true)
-    {
-        if ($value) {
-            $this->noCache = true;
-        }
-
-        return parent::asArray($value);
     }
 
     /**
@@ -351,4 +375,17 @@ class CacheActiveQuery extends ActiveQuery
 
         return $class::deleteAll($this->where, $params);
     }
+
+    /**
+     * @return ActiveRecord|null
+     */
+    public function any()
+    {
+        $query = clone  $this;
+        $result = $query->limit(1)->noCache()->one();
+        unset($query);
+
+        return $result;
+    }
+
 }

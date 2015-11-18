@@ -3,8 +3,8 @@
 namespace sitkoru\cache\ar;
 
 use yii\db\ActiveRecord;
+use yii\db\Exception;
 use yii\db\Query;
-use yii\redis\Connection;
 
 /**
  * Class ActiveQueryCacheHelper
@@ -14,54 +14,31 @@ use yii\redis\Connection;
  */
 class ActiveQueryCacheHelper extends CacheHelper
 {
-    private static $logClass;
-    private static $connection = null;
+    private static $inited = false;
+    public static $shaCache = '86bda7598e8952af3ca5aa2f23eedc54a5a11414';
+    public static $shaInvalidate = '8cc3d1f5ba2ec9b0ceee2925dcdf516d67e18d70';
+
+    private static $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR;
 
     /**
-     * @return Connection
+     *
      */
-    public static function getRedis()
+    public static function initialize()
     {
-        if (!self::$connection) {
-            self::$connection = \Yii::$app->cache->redis;
-        }
-        return self::$connection;
-    }
+        if (!self::$inited) {
 
-    public static function setConnection(Connection $connection)
-    {
-        self::$connection = $connection;
-    }
+            if (!ActiveQueryCacheHelper::scriptExists(self::$shaCache)) {
+                $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'cache.lua';
+                ActiveQueryCacheHelper::loadScript($path);
+            }
+            if (!ActiveQueryCacheHelper::scriptExists(self::$shaInvalidate)) {
+                $path = __DIR__ . DIRECTORY_SEPARATOR . 'lua' . DIRECTORY_SEPARATOR . 'invalidate.lua';
+                ActiveQueryCacheHelper::loadScript($path);
+            }
 
-    public static function log($message)
-    {
-        if (self::$logClass) {
-            $logger = self::$logClass;
-            $logger::log($message);
+            self::$inited = true;
         }
     }
-
-    const PROFILE_RESULT_HIT_ONE = 0;
-    const PROFILE_RESULT_HIT_ALL = 1;
-    const PROFILE_RESULT_MISS_ONE = 2;
-    const PROFILE_RESULT_MISS_ALL = 3;
-    const PROFILE_RESULT_DROP_PK = 4;
-    const PROFILE_RESULT_DROP_DEPENDENCY = 5;
-    const PROFILE_RESULT_NO_CACHE = 6;
-    const PROFILE_RESULT_EMPTY_ONE = 7;
-    const PROFILE_RESULT_EMPTY_ALL = 8;
-
-    public static $types = [
-        self::PROFILE_RESULT_HIT_ONE         => 'HIT ONE',
-        self::PROFILE_RESULT_HIT_ALL         => 'HIT ALL',
-        self::PROFILE_RESULT_MISS_ONE        => 'MISS ONE',
-        self::PROFILE_RESULT_MISS_ALL        => 'MISS ALL',
-        self::PROFILE_RESULT_DROP_PK         => 'DROP PK',
-        self::PROFILE_RESULT_DROP_DEPENDENCY => 'DROP DEPENDENCY',
-        self::PROFILE_RESULT_NO_CACHE        => 'NO CACHE',
-        self::PROFILE_RESULT_EMPTY_ONE       => 'EMPTY ONE',
-        self::PROFILE_RESULT_EMPTY_ALL       => 'EMPTY ALL'
-    ];
 
     private static $cacheTTL = 7200; //two hours by default
 
@@ -70,7 +47,7 @@ class ActiveQueryCacheHelper extends CacheHelper
      */
     public static function setTTL($ttl)
     {
-        self::$cacheTTL = intval($ttl);
+        self::$cacheTTL = (int)$ttl;
     }
 
     /**
@@ -79,22 +56,6 @@ class ActiveQueryCacheHelper extends CacheHelper
     public static function getTTL()
     {
         return self::$cacheTTL;
-    }
-
-    /**
-     * @param $className
-     */
-    public static function setLogClass($className)
-    {
-        self::$logClass = $className;
-    }
-
-    /**
-     * @return string|null
-     */
-    public static function getLogClass()
-    {
-        return self::$logClass;
     }
 
     /**
@@ -115,9 +76,9 @@ class ActiveQueryCacheHelper extends CacheHelper
     }
 
     /**
-     * @param $className
-     * @param $condition
-     * @param $params
+     * @param ActiveRecord $className
+     * @param              $condition
+     * @param              $params
      *
      * @return array
      */
@@ -126,324 +87,55 @@ class ActiveQueryCacheHelper extends CacheHelper
         /**
          * @var ActiveRecord $className
          */
-        $pks = $className::primaryKey(true);
+        $pks = $className::primaryKey();
         $pkName = reset($pks);
-        $query = new Query();
-        $results = $query->select($pkName)->from($className::tableName())->where(
+        $query = (new Query())->select($pkName)->from($className::tableName())->where(
             $condition,
             $params
-        )->createCommand()->queryAll();
+        );
+        try {
+            $results = $query->createCommand()->queryAll();
+        } catch (Exception $ex) {
+            $results = [];
+        }
+
         return [$pkName, $results];
     }
 
     /**
      * @param ActiveRecord $model
      * @param array        $changedAttributes
-     * @param bool         $withEvents
      */
-    public static function dropCaches($model, $changedAttributes = [], $withEvents = true)
+    public static function dropCaches($model, array $changedAttributes = [])
     {
-        self::log(
-            "LD " . $model::className() . " " . json_encode($model->attributes)
-        );
-        $depended = self::getDependedCaches($model, $changedAttributes, $withEvents);
-        if (count($depended)) {
-            foreach ($depended as $cacheKey) {
-                self::log("D " . $cacheKey['key']);
-                self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $cacheKey['key']);
-                \Yii::$app->cache->delete($cacheKey['key']);
-                self::removeFromSet($cacheKey['setKey'], $cacheKey['key']);
-            }
-        }
-
-    }
-
-    /**
-     * @param ActiveRecord $model
-     *
-     * @param array        $changedAttributes
-     * @param bool         $withEvents
-     *
-     * @return array
-     */
-    public static function getDependedCaches(ActiveRecord $model, $changedAttributes, $withEvents)
-    {
-        $keys = [];
-
-        $tableName = $model->tableName();
-        $pks = $model->getPrimaryKey(true);
-        $pk = reset($pks);
-
-        $setKey = $tableName . "_" . $pk;
-        $setKeys = self::getSetMembers($setKey);
-        if ($setKeys) {
-            foreach ($setKeys as $member) {
-                $keys[] = [
-                    'setKey' => $setKey,
-                    'key'    => $member,
-                ];
-            }
-        }
-
-        if ($withEvents) {
-            $keys = self::getEventsKeys($model, $changedAttributes, $keys);
-        }
-
-        return $keys;
-    }
-
-    /**
-     * @param ActiveRecord $singleModel
-     * @param              $changedAttributes
-     * @param              $keys
-     *
-     * @return array
-     */
-    public static function getEventsKeys($singleModel, $changedAttributes, $keys)
-    {
-        //if ($singleModel->insert) {
-        $keys = self::getKeysForCreateEvent($singleModel, $keys);
-        //} else {
-        $keys = self::getKeysForUpdateEvent($singleModel, $changedAttributes, $keys);
-        // }
-
-        return $keys;
-    }
-
-    /**
-     * @param $singleModel
-     * @param $keys
-     *
-     * @return array
-     */
-    public static function getKeysForCreateEvent(ActiveRecord $singleModel, $keys)
-    {
-        $keys = self::getEvents($singleModel::tableName(), 'create', $keys);
-        foreach ($singleModel->attributes as $attr => $value) {
-
-            if (is_array($singleModel->$attr)) {
-                continue; //skip array fields
-            }
-            $type = 'create_' . $attr . '_' . $singleModel->$attr;
-            $keys = self::getEvents($singleModel::tableName(), $type, $keys);
-        }
-
-        return $keys;
-    }
-
-    /**
-     * @param       $tableName
-     * @param       $type
-     * @param array $keys
-     *
-     * @return array
-     */
-    private static function getEvents($tableName, $type, $keys)
-    {
-        $setName = $tableName . "_" . $type;
-        $setMembers = self::getSetMembers($setName);
-        foreach ($setMembers as $member) {
-            $keys[] = [
-                'setKey' => $setName,
-                'key'    => $member,
-            ];
-        }
-        return $keys;
-    }
-
-    /**
-     * @param ActiveRecord $singleModel
-     * @param              $changedAttributes
-     * @param array        $keys
-     *
-     * @return array
-     */
-    public static function getKeysForUpdateEvent($singleModel, $changedAttributes, $keys)
-    {
-        $keys = self::getEvents($singleModel::tableName(), 'update', $keys);
-        foreach ($changedAttributes as $changedAttr => $oldValue) {
-            $setKeyType = 'update_' . $changedAttr;
-            $keys = self::getEvents($singleModel::tableName(), $setKeyType, $keys);
-            foreach ($singleModel->attributes as $attr => $value) {
-                if (is_array($singleModel->$attr)) {
-                    continue; //skip array fields
-                }
-                $type = $setKeyType . '_' . $attr . '_' . $singleModel->$attr;
-                $keys = self::getEvents($singleModel::tableName(), $type, $keys);
-            }
-        }
-
-        return $keys;
-    }
-
-    /***
-     * @param      $result
-     * @param      $key
-     * @param bool $query
-     */
-    public static function profile($result, $key, $query = false)
-    {
-        if (defined('ENABLE_CACHE_PROFILE') && ENABLE_CACHE_PROFILE) {
-            $entry = json_encode(
-                [
-                    'date'   => time(),
-                    'result' => $result,
-                    'key'    => $key,
-                    'query'  => $query
-                ]
-            );
-            self::increment('cacheResult' . $result);
-            self::addToList("cacheLog", $entry);
-        }
-    }
-
-    /**
-     * @param $key
-     * @param $data
-     * @param $indexes
-     * @param $dropConditions
-     */
-    public static function insertInCache($key, $data, $indexes, $dropConditions)
-    {
-        self::log("I " . $key);
-        $result = \Yii::$app->cache->set($key, $data, self::$cacheTTL);
-
-        if ($result) {
-            foreach ($indexes as $modelName => $keys) {
-                foreach ($keys as $pk) {
-                    self::addToSet($modelName . "_" . $pk, $key);
-                }
-                foreach ($dropConditions as $event) {
-
-                    $setKey = $modelName . '_' . $event['type'];
-                    switch ($event['type']) {
-                        case 'create':
-                            if ($event['param'] && $event['value']) {
-                                $setKey .= "_" . $event['param'] . "_" . $event['value'];
-                            }
-                            self::addToSet($setKey, $key);
-                            self::log("ID " . $setKey . ' ' . $key);
-                            break;
-                        case 'update':
-                            $setKey .= '_' . $event['param'];
-                            if ($event['conditions']) {
-                                foreach ($event['conditions'] as $param => $value) {
-                                    if (!is_array($value)) {
-                                        $value = [$value];
-                                    }
-                                    foreach ($value as $val) {
-                                        $paramSetKey = $setKey . "_" . $param . "_" . $val;
-                                        self::addToSet($paramSetKey, $key);
-                                        self::log("ID " . $paramSetKey . ' ' . $key);
-                                    }
-                                }
-                            } else {
-                                self::addToSet($setKey, $key);
-                                self::log("ID " . $setKey . ' ' . $key);
-                            }
-                            break;
-                        default:
-                            continue;
-                            break;
-                    }
+        self::initialize();
+        $attrs = $model->getAttributes();
+        $changed = [];
+        if ($changedAttributes) {
+            $attrNames = array_keys($changedAttributes);
+            foreach ($attrNames as $attrName) {
+                if (array_key_exists($attrName, $attrs)) {
+                    $changed[$attrName] = $attrs[$attrName];
                 }
             }
         }
-    }
+        $args = [
+            $model->tableName(),
 
-    /**
-     * @param ActiveRecord $model
-     * @param              $key
-     */
-    public static function insertKeyForPK(ActiveRecord $model, $key)
-    {
-        /*$keys = $model->getPrimaryKey(true);
-        $pk = reset($keys);
-        ActiveQueryCacheHelper::log(
-            "RK " . $key
-        );
-        CacheHelper::addToSet($model->tableName() . "_" . $pk, $key);*/
-    }
-
-    /**
-     * @param int $count
-     * @param int $page
-     *
-     * @return array
-     */
-    public static function getProfileRecords($count = 100, $page = 1)
-    {
-        $records = [];
-        $end = $count * $page;
-        $start = ($count * ($page - 1));
-        $jsonEntries = self::getListMembers("cacheLog", $start, $end);
-        foreach ($jsonEntries as $entry) {
-            $records[] = json_decode($entry, true);
-        }
-        return $records;
-    }
-
-    /**
-     * @return array
-     */
-    public static function getProfileStats()
-    {
-        $stats = [
-            'get'   => 0,
-            'hit'   => 0,
-            'miss'  => 0,
-            'empty' => 0,
+            json_encode($attrs, self::$jsonOptions),
+            json_encode($changed, self::$jsonOptions)
         ];
-        foreach (self::$types as $key => $typeName) {
-            $stats[$key] = self::getRedis()->get('cacheResult' . $key);
-            if ($key == self::PROFILE_RESULT_HIT_ALL || $key == self::PROFILE_RESULT_HIT_ONE) {
-                $stats['get'] += $stats[$key];
-                $stats['hit'] += $stats[$key];
-            }
-            if ($key == self::PROFILE_RESULT_MISS_ALL || $key == self::PROFILE_RESULT_MISS_ONE) {
-                $stats['get'] += $stats[$key];
-                $stats['miss'] += $stats[$key];
-            }
-            if ($key == self::PROFILE_RESULT_EMPTY_ALL || $key == self::PROFILE_RESULT_EMPTY_ONE) {
-                $stats['empty'] += $stats[$key];
-                $stats['miss'] += $stats[$key];
-            }
-        }
-        return $stats;
+        CacheHelper::evalSHA(self::$shaInvalidate, $args, 0);
     }
 
-    /**
-     * @return integer
-     */
-    public static function getProfileRecordsCount()
-    {
-        return self::getListLength('cacheLog');
-    }
 
-    /**
-     * @param ActiveRecord $className
-     * @param string|null  $param
-     * @param string|null  $value
-     */
-    public static function dropCachesForCreateEvent($className, $param = null, $value = null)
+    public static function dropCachesForCreateEvent($model, $param = null, $value = null)
     {
-        $type = 'create';
-        $keys = [];
-        if (!$param) {
-            $keys = self::getEvents($className::tableName(), $type, $keys);
+        if ($param) {
+            $model->$param = $value;
+            self::dropCaches($model, [$param => $value]);
         } else {
-            if (!is_array($value)) {
-                $value = [$value];
-            }
-            foreach ($value as $val) {
-                $keys = self::getEvents($className::tableName(), $type . "_" . $param . '_' . $val, $keys);
-            }
-        }
-
-        foreach ($keys as $key) {
-            self::profile(self::PROFILE_RESULT_DROP_DEPENDENCY, $key['key']);
-            \Yii::$app->cache->delete($key['key']);
-            self::removeFromSet($key['setKey'], $key['key']);
+            self::dropCaches($model);
         }
     }
 }
