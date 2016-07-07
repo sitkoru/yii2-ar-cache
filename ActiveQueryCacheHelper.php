@@ -81,7 +81,7 @@ class ActiveQueryCacheHelper extends CacheHelper
         $results = $query->select($pkName)->from($className::tableName())->where(
             $condition,
             $params
-        )->createCommand()->queryAll();
+        )->createCommand($className::getDb())->queryAll();
 
         return [$pkName, $results];
     }
