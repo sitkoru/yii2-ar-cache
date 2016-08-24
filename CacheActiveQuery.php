@@ -19,7 +19,7 @@ class CacheActiveQuery extends ActiveQuery
 
     private function isCacheEnabled()
     {
-        if ($this->disableCache || (defined('DISABLED_AR_CACHE') && DISABLED_AR_CACHE)) {
+        if ($this->disableCache || (defined('DISABLE_AR_CACHE') && DISABLE_AR_CACHE)) {
             return false;
         }
         return true;
@@ -32,7 +32,7 @@ class CacheActiveQuery extends ActiveQuery
     {
         ActiveQueryCacheHelper::initialize();
 
-        if (!$this->disableCache) {
+        if ($this->isCacheEnabled()) {
             $command = $this->createCommand($db);
             $rawSql = $command->rawSql;
             $key = $this->generateCacheKey($rawSql, 'all');
@@ -77,7 +77,7 @@ class CacheActiveQuery extends ActiveQuery
     public function one($db = null)
     {
         ActiveQueryCacheHelper::initialize();
-        if (!$this->disableCache) {
+        if ($this->isCacheEnabled()) {
             $command = $this->createCommand($db);
             $key = $this->generateCacheKey($command->rawSql, 'one');
             /**
