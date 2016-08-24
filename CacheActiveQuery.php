@@ -17,6 +17,13 @@ class CacheActiveQuery extends ActiveQuery
     private $dropConditions = [];
     private $disableCache = false;
 
+    private function isCacheEnabled()
+    {
+        if ($this->disableCache || (defined('DISABLED_AR_CACHE') && DISABLED_AR_CACHE)) {
+            return false;
+        }
+        return true;
+    }
 
     /**
      * @inheritdoc
