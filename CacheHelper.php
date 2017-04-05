@@ -28,13 +28,21 @@ class CacheHelper
 
     public static function evalSHA($sha, $args, $numKeys)
     {
-        return static::getRedis()->executeCommand('EVALSHA', [$sha, $args, $numKeys]);
+        return static::getRedis()->evalsha($sha, $numKeys, ...$args);
     }
 
     public static function get($key)
     {
-        $res = static::getRedis()->executeCommand('get', [$key]);
+        $res = static::getRedis()->get($key);
 
-        return $res !== false ? unserialize(zlib_decode($res)) : $res;
+        if ($res !== false) {
+            try {
+                return unserialize(zlib_decode($res));
+            } catch (\Throwable $ex) {
+
+            }
+            return null;
+        }
+        return $res;
     }
 }
