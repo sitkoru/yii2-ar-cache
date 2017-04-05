@@ -133,11 +133,11 @@ class CacheActiveQuery extends ActiveQuery
     {
         $toCache = [];
         if ($models) {
-            array_map(function ($model) use $toCache {
+            foreach ($models as $k => $model) {
                 $copy = clone $model;
                 $copy->fromCache = true;
                 $toCache[$k] = $copy;
-            }, $models)
+            }
         }
         $this->insertInCache($key, $toCache);
 
