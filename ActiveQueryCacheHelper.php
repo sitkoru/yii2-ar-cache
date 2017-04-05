@@ -94,7 +94,7 @@ class ActiveQueryCacheHelper extends CacheHelper
             $params
         );
         try {
-            $results = $query->createCommand()->queryAll();
+            $results = $query->createCommand($className::getDb())->queryAll();
         } catch (Exception $ex) {
             $results = [];
         }
