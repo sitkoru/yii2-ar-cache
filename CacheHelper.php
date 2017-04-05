@@ -44,7 +44,7 @@ class CacheHelper
             try {
                 return unserialize(zlib_decode($res));
             } catch (\Throwable $ex) {
-
+                \Yii::error("Can't unserialize data for key {$key}: {$ex->getMessage()}");
             }
             return null;
         }
