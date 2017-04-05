@@ -4,12 +4,13 @@ namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
-use yii\helpers\ArrayHelper;
 
 /**
  * Class CacheActiveQuery
  *
  * @package sitkoru\cache\ar
+ *
+ * @property array $parsedWhere
  */
 class CacheActiveQuery extends ActiveQuery
 {
@@ -57,18 +58,15 @@ class CacheActiveQuery extends ActiveQuery
                 }
 
                 return $resultFromCache;
-            } else {
-                $models = parent::all($db);
-                if ($models) {
-                    $this->insertInCacheAll($key, $models);
-                }
-
-                return $models;
             }
-        } else {
-            return parent::all($db);
-        }
+            $models = parent::all($db);
+            if ($models) {
+                $this->insertInCacheAll($key, $models);
+            }
 
+            return $models;
+        }
+        return parent::all($db);
     }
 
     /**
@@ -94,25 +92,22 @@ class CacheActiveQuery extends ActiveQuery
                 }
 
                 return $fromCache;
-            } else {
-                $model = parent::one();
-                if ($model) {
-                    $this->insertInCacheOne($key, $model);
-                }
-                if ($model && $model instanceof ActiveRecord) {
-                    return $model;
-                } else {
-                    return null;
-                }
             }
-        } else {
-            return parent::one();
+            $model = parent::one();
+            if ($model) {
+                $this->insertInCacheOne($key, $model);
+            }
+            if ($model && $model instanceof ActiveRecord) {
+                return $model;
+            }
+            return null;
         }
+        return parent::one();
     }
 
     /**
      * @param bool $value
-     * @return static
+     * @return CacheActiveQuery|ActiveQuery
      */
     public function asArray($value = true)
     {
@@ -181,7 +176,7 @@ class CacheActiveQuery extends ActiveQuery
      */
     private function generateCacheKey($sql, $mode)
     {
-        $key = $mode . strtolower($this->modelClass) . $sql;;
+        $key = $mode . strtolower($this->modelClass) . $sql;
         if (count($this->where) === 0 && count($this->dropConditions) === 0) {
             $this->dropCacheOnCreate();
         }
@@ -227,7 +222,7 @@ class CacheActiveQuery extends ActiveQuery
 
     /**
      * @param string     $param
-     * @param null|array $condition
+     * @param null|array $conditions
      *
      * @return self
      */
@@ -238,12 +233,15 @@ class CacheActiveQuery extends ActiveQuery
          */
         $className = $this->modelClass;
         $tableName = $className::tableName();
-        if (!isset($this->dropConditions[$tableName][$param])) {
+        if (!array_key_exists($tableName, $this->dropConditions)) {
+            $this->dropConditions[$tableName] = [];
+        }
+        if (!array_key_exists($param, $this->dropConditions[$tableName])) {
             $this->dropConditions[$tableName][$param] = [];
         }
         $cond = '*';
         if ($conditions) {
-            $cond = ['conditions' = $conditions];
+            $cond = ['conditions' => $conditions];
         }
         $this->dropConditions[$tableName][$param][] = $cond;
 
@@ -319,8 +317,7 @@ class CacheActiveQuery extends ActiveQuery
             }
             if (count($this->where) !== 0) {
                 $where = $this->getParsedWhere();
-                foreach ($where as $condition) {
-                    list($column, $operator, $value) = $condition;
+                foreach ($where as list($column, $operator, $value)) {
                     if (in_array(
                         $operator,
                         [
@@ -352,9 +349,7 @@ class CacheActiveQuery extends ActiveQuery
     protected function getParsedWhere()
     {
         $parser = new WhereParser(\Yii::$app->db);
-        $data = $parser->parse($this->where, $this->params);
-
-        return $data;
+        return $parser->parse($this->where, $this->params);
     }
 
 
