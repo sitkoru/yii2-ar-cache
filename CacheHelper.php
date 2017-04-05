@@ -26,6 +26,11 @@ class CacheHelper
         return static::getRedis()->executeCommand('SCRIPT', ['load', $script]);
     }
 
+    public static function scriptExists($sha)
+    {
+        return reset(static::getRedis()->executeCommand('SCRIPT', ['exists', $sha]));
+    }
+
     public static function evalSHA($sha, $args, $numKeys)
     {
         return static::getRedis()->evalsha($sha, $numKeys, ...$args);
