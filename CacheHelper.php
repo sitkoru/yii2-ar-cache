@@ -41,7 +41,7 @@ class CacheHelper
     {
         $res = static::getRedis()->get($key);
 
-        if ($res !== false) {
+        if ($res !== false && $res!==null) {
             try {
                 return unserialize(zlib_decode($res));
             } catch (\Throwable $ex) {
