@@ -15,11 +15,10 @@
       "email": "sonicgd@gmail.com"
     }
   ],
-  "minimum-stability": "dev",
+  "minimum-stability": "stable",
   "require": {
     "php": ">=5.4.0",
-    "yiisoft/yii2": "*",
-    "yiisoft/yii2-redis": "*"
+    "yiisoft/yii2-redis": "~2.0.6"
   },
   "autoload": {
     "psr-4": {
