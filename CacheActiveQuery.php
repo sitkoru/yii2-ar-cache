@@ -3,6 +3,7 @@
 namespace sitkoru\cache\ar;
 
 use yii\db\ActiveQuery;
+use yii\db\ActiveQueryTrait;
 use yii\db\ActiveRecord;
 
 /**
@@ -15,6 +16,7 @@ use yii\db\ActiveRecord;
 class CacheActiveQuery extends ActiveQuery
 {
 
+    use ActiveQueryTrait;
 
     private $dropConditions = [];
     private $disableCache = false;
@@ -45,6 +47,20 @@ class CacheActiveQuery extends ActiveQuery
             if ($fromCache) {
 
                 $resultFromCache = [];
+                if($this->with)
+                {
+                    $primaryModel = reset($fromCache);
+                    $relations = $this->normalizeRelations($primaryModel, $this->with);
+                    /* @var $relation ActiveQuery */
+                    foreach ($relations as $name => $relation)
+                    {
+                        if ($relation->asArray === null) {
+                            // inherit asArray from primary query
+                            $relation->asArray($this->asArray);
+                        }
+                        $relation->populateRelation($name, $fromCache);
+                    }
+                }
                 foreach ($fromCache as $i => $model) {
                     $index = $i;
                     if ($model instanceof ActiveRecord) {
