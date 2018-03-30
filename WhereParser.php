@@ -139,7 +139,7 @@ class WhereParser
             throw new Exception("Operator '$operator' requires two operands.");
         }
 
-        list($column, $values) = $operands;
+        [$column, $values] = $operands;
 
         if ($values === [] || $column === []) {
             return $operator === 'IN' ? '0=1' : '';
@@ -150,16 +150,16 @@ class WhereParser
         }
 
         $values = (array)$values;
-
-        if (is_array($column)) {
+        if (\is_array($column) && \count($column) > 1) {
+            return $this->parseCompositeInCondition($operator, $column, $values, $params);
+        }
+        if (\is_array($column)) {
             $column = reset($column);
-            if (\count($column) > 1) {
-                return $this->parseCompositeInCondition($operator, $column, $values, $params);
-            }
+
         }
         foreach ($values as $i => $value) {
-            if (is_array($value)) {
-                $value = array_key_exists($column, $value) ? $value[$column] : null;
+            if (\is_array($value)) {
+                $value = $value[$column] ?? null;
             }
             if ($value === null) {
                 $values[$i] = 'NULL';
