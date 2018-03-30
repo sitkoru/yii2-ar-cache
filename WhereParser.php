@@ -61,7 +61,7 @@ class WhereParser
     /**
      * Creates a condition based on column-value pairs.
      * @param array $condition the condition specification.
-     * @param array $params the binding parameters to be populated
+     * @param array $params    the binding parameters to be populated
      * @return string the generated SQL expression
      */
     public function parseHashCondition($condition, &$params)
@@ -83,7 +83,7 @@ class WhereParser
      * Connects two or more SQL expressions with the `AND` or `OR` operator.
      * @param string $operator the operator to use for connecting the given operands
      * @param array  $operands the SQL expressions to connect.
-     * @param array  $params the binding parameters to be populated
+     * @param array  $params   the binding parameters to be populated
      * @return string the generated SQL expression
      */
     public function parseAndCondition($operator, $operands, &$params)
@@ -101,7 +101,7 @@ class WhereParser
      * Inverts an SQL expressions with `NOT` operator.
      * @param string $operator the operator to use for connecting the given operands
      * @param array  $operands the SQL expressions to connect.
-     * @param array  $params the binding parameters to be populated
+     * @param array  $params   the binding parameters to be populated
      * @return string the generated SQL expression
      * @throws InvalidParamException if wrong number of operands have been given.
      */
@@ -115,8 +115,8 @@ class WhereParser
      * Creates an SQL expressions with the `BETWEEN` operator.
      * @param string $operator the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
      * @param array  $operands the first operand is the column name. The second and third operands
-     * describe the interval that column value should be in.
-     * @param array  $params the binding parameters to be populated
+     *                         describe the interval that column value should be in.
+     * @param array  $params   the binding parameters to be populated
      * @return string the generated SQL expression
      * @throws InvalidParamException if wrong number of operands have been given.
      */
@@ -151,12 +151,11 @@ class WhereParser
 
         $values = (array)$values;
 
-        if (count($column) > 1) {
-            return $this->parseCompositeInCondition($operator, $column, $values, $params);
-        }
-
         if (is_array($column)) {
             $column = reset($column);
+            if (\count($column) > 1) {
+                return $this->parseCompositeInCondition($operator, $column, $values, $params);
+            }
         }
         foreach ($values as $i => $value) {
             if (is_array($value)) {
@@ -227,7 +226,7 @@ class WhereParser
      * Creates an SQL expressions with the `EXISTS` operator.
      * @param string $operator the operator to use (e.g. `EXISTS` or `NOT EXISTS`)
      * @param array  $operands contains only one element which is a [[Query]] object representing the sub-query.
-     * @param array  $params the binding parameters to be populated
+     * @param array  $params   the binding parameters to be populated
      * @return string the generated SQL expression
      * @throws InvalidParamException if the operand is not a [[Query]] object.
      */
@@ -241,7 +240,7 @@ class WhereParser
      * Creates an SQL expressions like `"column" operator value`.
      * @param string $operator the operator to use. Anything could be used e.g. `>`, `<=`, etc.
      * @param array  $operands contains two column names.
-     * @param array  $params the binding parameters to be populated
+     * @param array  $params   the binding parameters to be populated
      * @return string the generated SQL expression
      * @throws InvalidParamException if wrong number of operands have been given.
      */

@@ -47,13 +47,11 @@ class CacheActiveQuery extends ActiveQuery
             if ($fromCache) {
 
                 $resultFromCache = [];
-                if($this->with)
-                {
+                if ($this->with) {
                     $primaryModel = reset($fromCache);
                     $relations = $this->normalizeRelations($primaryModel, $this->with);
                     /* @var $relation ActiveQuery */
-                    foreach ($relations as $name => $relation)
-                    {
+                    foreach ($relations as $name => $relation) {
                         if ($relation->asArray === null) {
                             // inherit asArray from primary query
                             $relation->asArray($this->asArray);
@@ -193,7 +191,7 @@ class CacheActiveQuery extends ActiveQuery
     private function generateCacheKey($sql, $mode)
     {
         $key = $mode . strtolower($this->modelClass) . $sql;
-        if (count($this->where) === 0 && count($this->dropConditions) === 0) {
+        if ((!$this->where || \count($this->where) === 0) && (!$this->dropConditions || \count($this->dropConditions) === 0)) {
             $this->dropCacheOnCreate();
         }
         //pagination
@@ -331,7 +329,7 @@ class CacheActiveQuery extends ActiveQuery
             if (!array_key_exists($tableName, $this->dropConditions)) {
                 $this->dropConditions[$tableName] = [];
             }
-            if (count($this->where) !== 0) {
+            if ($this->where && \count($this->where) !== 0) {
                 $where = $this->getParsedWhere();
                 foreach ($where as list($column, $operator, $value)) {
                     if (in_array(
