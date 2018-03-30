@@ -348,6 +348,7 @@ class CacheActiveQuery extends ActiveQuery
                     )) {
                         continue;
                     }
+                    $column = str_ireplace('{{' . $tableName . '}}.', '', $column);
                     $this->dropConditions[$tableName][$column][] = [$column, $value];
 
                 }
